@@ -3,6 +3,7 @@
 
 """The setup script."""
 
+import os
 from setuptools import find_packages, setup
 
 with open('README.md', encoding='utf-8') as readme_file:
@@ -13,7 +14,7 @@ with open('HISTORY.md', encoding='utf-8') as history_file:
 
 install_requires = [
     "numpy>=1.20.0,<2;python_version<'3.10'",
-    "numpy>=1.23.3,<2;python_version>='3.10'",
+    "numpy>=1.23.3;python_version>='3.10'",
     "pandas>=1.1.3;python_version<'3.10'",
     "pandas>=1.3.4;python_version>='3.10' and python_version<'3.11'",
     "pandas>=1.5.0;python_version>='3.11'",
@@ -21,7 +22,7 @@ install_requires = [
     "torch>=1.8.0;python_version<'3.10'",
     "torch>=1.11.0;python_version>='3.10' and python_version<'3.11'",
     "torch>=2.0.0;python_version>='3.11'",
-    'rdt>=1.6.1,<2.0',
+    "rdt @ file://" + os.path.abspath('../RDT')
 ]
 
 setup_requires = [
@@ -113,7 +114,7 @@ setup(
     keywords='ctgan CTGAN',
     name='ctgan',
     packages=find_packages(include=['ctgan', 'ctgan.*']),
-    python_requires='>=3.8,<3.12',
+    python_requires='>=3.8,<3.14',
     setup_requires=setup_requires,
     test_suite='tests',
     tests_require=tests_require,
