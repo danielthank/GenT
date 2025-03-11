@@ -1,13 +1,14 @@
 import json
 import os
-from typing import Optional, List
-
+import sys
 import requests
+from typing import Optional, List
+from requests.exceptions import RequestException
+from ml.app_denormalizer import Component, prepare_tx_structure
 
-from src.ml.app_denormalizer import Component, prepare_tx_structure
+import argparse
 
 JAEGER_URL = "http://localhost:16686"
-APP = "hotelReservation"
 
 
 def download_traces_from_jaeger(service_name: str, jaeger_url: str, target_dir: str) -> int:
@@ -91,7 +92,58 @@ def translate_jaeger_to_gent_from_list(jaeger_traces: List[dict], filepath: Opti
                     f.write(json.dumps(gent_trace) + ",\n")
 
 
-if __name__ == '__main__':
-    download_traces_from_jaeger_for_all_services(target_dir=f"data/{APP}/raw_jaeger/")
-    translate_jaeger_to_gent(from_dir=f"data/{APP}/raw_jaeger/", to_dir=f"data/{APP}/gent/")
+def main():
+    parser = argparse.ArgumentParser(
+        description='Convert Jaeger traces to GenT format with options to download or translate existing traces.',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    subparsers = parser.add_subparsers(dest='action', required=True, help='Action to perform')
 
+    # Translate subcommand
+    translate_parser = subparsers.add_parser('translate', 
+        help='Translate existing Jaeger traces to GenT format')
+    translate_parser.add_argument('--from-dir', required=True,
+        help='Directory containing Jaeger traces')
+    translate_parser.add_argument('--to-dir',
+        help='Output directory for translated traces (default: replaces raw_jaeger with gent in from-dir)')
+
+    # Download-and-translate subcommand
+    download_parser = subparsers.add_parser('download-and-translate',
+        help='Download traces from Jaeger and translate them to GenT format')
+    download_parser.add_argument('--target-dir', required=True,
+        help='Directory to store downloaded traces')
+    download_parser.add_argument('--app', required=True,
+        help='Application name')
+    download_parser.add_argument('--jaeger-url', default=JAEGER_URL,
+        help=f'Jaeger API endpoint (default: {JAEGER_URL})')
+    download_parser.add_argument('--to-dir',
+        help='Output directory for translated traces (default: replaces raw_jaeger with gent in target-dir)')
+
+    args = parser.parse_args()
+
+    try:
+        if args.action == 'translate':
+            translate_jaeger_to_gent(
+                from_dir=args.from_dir,
+                to_dir=args.to_dir
+            )
+        else:  # download-and-translate
+            target_dir = os.path.join(args.target_dir, "raw_jaeger")
+            download_traces_from_jaeger_for_all_services(
+                target_dir=target_dir,
+                jaeger_url=args.jaeger_url
+            )
+            to_dir = args.to_dir if args.to_dir else os.path.join(args.target_dir, "gent")
+            translate_jaeger_to_gent(
+                from_dir=target_dir,
+                to_dir=to_dir
+            )
+    except RequestException as e:
+        print(f"Error accessing Jaeger API: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
