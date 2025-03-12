@@ -85,11 +85,19 @@ def translate_jaeger_to_gent(from_dir: str, to_dir: Optional[str] = None) -> Non
 
 
 def translate_jaeger_to_gent_from_list(jaeger_traces: List[dict], filepath: Optional[str] = None) -> None:
-        with open(filepath, "w") as f:
+        root_cause_filepath = filepath.rsplit('.', 1)[0] + '.root_cause.json'
+        
+        with open(filepath, "w") as f, open(root_cause_filepath, "w") as rf:
             for jaeger_trace in jaeger_traces:
                 gent_trace = _handle_jaeger_trace(jaeger_trace)
                 if gent_trace:
                     f.write(json.dumps(gent_trace) + ",\n")
+                    if "rootCause" in jaeger_trace:
+                        root_cause_data = {
+                            "traceId": jaeger_trace["traceID"],
+                            "rootCause": jaeger_trace["rootCause"]
+                        }
+                        rf.write(json.dumps(root_cause_data) + ",\n")
 
 
 def main():
