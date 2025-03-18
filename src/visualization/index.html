@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenT Trace Visualizer</title>
+    
+    <!-- vis.js -->
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://unpkg.com/vis-data/standalone/umd/vis-data.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        #input-container {
+            margin-bottom: 20px;
+        }
+
+        #trace-input {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        #visualize-btn {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #visualize-btn:hover {
+            background-color: #45a049;
+        }
+
+        #visualization-container {
+            flex-grow: 1;
+            display: flex;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #graph-container {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: white;
+            position: relative;
+        }
+
+        .error {
+            color: #ff0000;
+            margin-top: 10px;
+        }
+
+        /* Tooltip styles */
+        .vis-tooltip {
+            position: absolute;
+            padding: 8px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: none;
+            max-width: 300px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="input-container">
+        <textarea id="trace-input" placeholder="Paste your GenT trace JSON here..."></textarea>
+        <div id="error-container"></div>
+    </div>
+    <div id="visualization-container">
+        <div id="graph-container"></div>
+    </div>
+
+    <script>
+        let network = null;
+        let networkData = null;
+
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        function formatMetadata(metadata) {
+            if (!metadata) return '';
+            return Object.entries(metadata)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join('\n');
+        }
+
+        function createNetwork(gentTrace) {
+            const graphContainer = document.getElementById('graph-container');
+
+            // Create nodes
+            const nodes = Object.entries(gentTrace.nodesData).map(([id, node]) => {
+                const tooltipContent = formatMetadata(node.environmentVariables?.body);
+                return {
+                    id: id,
+                    label: id,
+                    title: tooltipContent,
+                    value: node.duration, // Node size based on duration
+                    group: id.includes('*') ? id.split('*')[0] : id // Use node ID as group, removing first * and everything after
+                };
+            });
+
+            // Create edges from graph data
+            const edges = gentTrace.graph.edges.map(edge => ({
+                from: edge.source,
+                to: edge.target,
+                arrows: 'from'
+            }));
+
+            networkData = {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            };
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    scaling: {
+                        min: 10,
+                        max: 30,
+                        label: {
+                            enabled: true,
+                            min: 14,
+                            max: 30
+                        }
+                    }
+                },
+                physics: {
+                    stabilization: {
+                        iterations: 100
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        springConstant: 0.04
+                    }
+                }
+            };
+
+            network = new vis.Network(graphContainer, networkData, options);
+
+            return network;
+        }
+
+        document.getElementById('trace-input').addEventListener('input', () => {
+            clearError();
+            
+            try {
+                // Parse input JSON
+                const input = document.getElementById('trace-input').value;
+                const gentTrace = JSON.parse(input);
+
+                // Validate basic structure
+                if (!gentTrace.nodesData || !gentTrace.graph) {
+                    throw new Error('Invalid GenT trace format. Missing required fields.');
+                }
+
+                // Clear existing visualization
+                if (network) network.destroy();
+
+                // Create new visualization
+                createNetwork(gentTrace);
+
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>
