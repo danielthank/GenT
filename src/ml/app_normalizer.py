@@ -2,6 +2,7 @@ import csv
 import json
 import math
 import os
+import argparse
 from typing import Dict, Generator, List, Optional, Tuple, Union, NamedTuple
 
 RowType = List[Union[str, int]]
@@ -15,8 +16,6 @@ from ml.app_utils import (
     remember_type,
     store_global_metadata,
 )
-from gent_utils.constants import TRACES_DIR
-
 INITIAL_ROW_HEADERS = ["traceId", "txStartTime", "chain"]
 PER_COMPONENT_HEADERS = [
     "gapFromParent_{component_index}",
@@ -386,6 +385,9 @@ def normalize_data(input_dir: str, config: GenTConfig) -> None:
 
 
 if __name__ == '__main__':
-    normalize_data(TRACES_DIR, GenTConfig(chain_length=2))
-    normalize_data(TRACES_DIR, GenTConfig(chain_length=3))
-    normalize_data(TRACES_DIR, GenTConfig(chain_length=4))
+    parser = argparse.ArgumentParser(description='Run Normalizer')
+    parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
+    args = parser.parse_args()
+    normalize_data(args.traces_dir, GenTConfig(chain_length=2, traces_dir=args.traces_dir))
+    normalize_data(args.traces_dir, GenTConfig(chain_length=3, traces_dir=args.traces_dir))
+    normalize_data(args.traces_dir, GenTConfig(chain_length=4, traces_dir=args.traces_dir))

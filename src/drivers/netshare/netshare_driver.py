@@ -9,8 +9,6 @@ import pandas as pd
 from drivers.base_driver import BaseDriver
 from ml.app_denormalizer import denormalize_data
 from ml.app_normalizer import normalize_data
-from gent_utils.constants import TRACES_DIR
-
 try:
     from netshare.configs import load_from_file
     from netshare.generate.generate import generate
@@ -110,7 +108,7 @@ class NetShareDriver(BaseDriver):
 
     def train_and_generate(self) -> None:
         shutil.rmtree(self.get_work_folder(), ignore_errors=True)
-        normalize_data(TRACES_DIR, self.gen_t_config)
+        normalize_data(self.gen_t_config.traces_dir, self.gen_t_config)
         generator = Generator(config=self.as_file(
             generate_num_train_sample=6000,
         ))

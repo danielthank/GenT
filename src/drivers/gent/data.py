@@ -1,20 +1,17 @@
-import random
-
 import datetime
 import json
-from collections import defaultdict
-from functools import lru_cache
-from typing import List, Tuple, Dict
 import os
 
 import numpy as np
 import pandas as pd
 import torch
+from collections import defaultdict
+from functools import lru_cache
+from typing import List, Tuple, Dict
 from matplotlib import pyplot
 
 from ml.app_normalizer import extract_rows_from_transaction, get_csv_headers, set_gent_name
 from ml.app_utils import GenTConfig, store_global_metadata
-from gent_utils.constants import TRACES_DIR
 
 ALL_TRACES = 23010
 GRAPH_COUNTS: List[Tuple[str, int]] = [
@@ -141,7 +138,8 @@ def count_histogram(traces_dir: str):
 
 
 if __name__ == '__main__':
-    counts = get_graph_counts(tx_start=0, tx_end=ALL_TRACES, traces_dir=TRACES_DIR)
+    # TODO: pass traces_dir
+    counts = get_graph_counts(tx_start=0, tx_end=ALL_TRACES, traces_dir="my_traces_dir")
     print(',\n'.join(str([k, v]) for k, v in counts.items()))
     counts = json.dumps(counts)
     print("raw size", len(counts))

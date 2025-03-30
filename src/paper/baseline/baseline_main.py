@@ -1,7 +1,7 @@
 import os
 import shutil
 import subprocess
-
+import argparse
 from drivers.tabFormer.tab_former_driver import TAB_FORMER_INTERPRETER, BASE_GENERATE_PARAMS, BASE_TRAIN_PARAMS, \
     TAB_FORMER_DIR, TabFormerDriver
 from drivers.netshare.netshare_driver import NetShareDriver
@@ -11,7 +11,6 @@ from fidelity.monitor import get_monitor_score
 from paper.baseline.app_baseline_denormalizer import denormalize_data_baseline
 from paper.baseline.app_baseline_normalizer import normalize_data_baseline
 from paper.baseline.baseline_utils import store_result
-from paper.ml_ops import TRACES_DIR
 
 try:
     from netshare.configs import load_from_file
@@ -87,8 +86,8 @@ def get_score(driver: str) -> None:
     print("Bottleneck score:", bottleneck_score)
 
 
-def main(driver: str):
-    normalize_data_baseline(TRACES_DIR, TARGET_DIR)
+def main(driver: str, traces_dir: str) -> None:
+    normalize_data_baseline(traces_dir, TARGET_DIR)
     output_dir = netshare() if driver == "netshare" else tabformer()
     denormalize_data_baseline(output_dir, f"{WORK_FOLDER}/{driver}/final_data")
 
@@ -96,7 +95,10 @@ def main(driver: str):
 
 
 if __name__ == '__main__':
-    # main("netshare")
-    # main("tabformer")
+    parser = argparse.ArgumentParser(description='Process trace data and run analysis')
+    parser.add_argument('traces_dir', type=str, help='Directory containing trace data')
+    args = parser.parse_args()
+    # main("netshare", args.traces_dir)
+    # main("tabformer", args.traces_dir)
     get_score("netshare")
     get_score("tabformer")

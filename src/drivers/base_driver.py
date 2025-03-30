@@ -2,11 +2,9 @@ import os
 import shutil
 import tarfile
 import tempfile
-from typing import Tuple, List, Literal
-
 import boto3
-
 import drivers
+from typing import Tuple, List, Literal
 from ml.app_utils import GenTBaseConfig
 
 DriverType = Literal["netshare", "tabFormer", "genT"]

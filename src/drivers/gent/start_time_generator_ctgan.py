@@ -19,7 +19,6 @@ from ctgan.synthesizers.ctgan import CTGAN
 from drivers.gent.data import get_all_txs, get_graph_counts, ALL_TRACES
 from fidelity.utils import compare_distributions
 from ml.app_utils import GenTConfig
-from gent_utils.constants import TRACES_DIR
 from gent_utils.utils import device
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "start_time_generator")

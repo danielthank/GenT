@@ -5,8 +5,6 @@ from dataclasses import dataclass, asdict
 from functools import lru_cache
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union, Literal
 
-from gent_utils.constants import TRACES_DIR
-
 MetadataType = Literal["str", "int"]
 ComponentType = Literal["http", "lambda", "triggerBy", "jaeger"]
 EMPTY = "Unknown"
@@ -57,7 +55,8 @@ class GenTConfig(GenTBaseConfig):
     independent_chains: bool = False
     tx_start: int = 0
     tx_end: int = 1000
-    traces_dir: str = TRACES_DIR
+    # Remove default value once all initializations have traces_dir
+    traces_dir: str = None
 
     @staticmethod
     def load(**kwargs) -> "GenTConfig":

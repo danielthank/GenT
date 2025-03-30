@@ -7,23 +7,20 @@ import pprint
 import logging
 import sqlite3
 import multiprocessing
+import argparse
 from pathlib import Path
 from functools import partial
 from collections import Counter, OrderedDict
-from string import Formatter
 from typing import List, Dict, Tuple
 
 import numpy
 import scipy
 import pandas
 from matplotlib import pyplot
-
 from ml.app_normalizer import extract_metadata
-from gent_utils.constants import TRACES_DIR
 from paper.adaption_experiment import NON_ROLLING_PATH, ROLLING_PATH
 from drivers.gent.data import get_all_txs, ALL_TRACES, ROLLING_EXPERIMENT_CONFIGS, ROLLING_EXPERIMENT_NAMES
-
-from src.pandora_trace.query_db import BENCHMARK_QUERIES, run_templates
+from pandora_trace.query_db import BENCHMARK_QUERIES, run_templates
 
 FEATURES = ["str_feature_1", "str_feature_2", "int_feature_1", "int_feature_2", "int_feature_3"]
 HOUR = 60 * 60 * 1000
@@ -35,18 +32,23 @@ ALL_SAMPLINGS: List[str] = HEAD_SAMPLINGS + ["ErrorBasedTraces", "DurationBasedT
 pandas.set_option('display.max_rows', 100)
 pandas.set_option('display.max_columns', 10)
 
-conn = sqlite3.connect('../paper/spans_deathstar.db')
+conn = sqlite3.connect('./paper/spans_deathstar.db')
 
 
-def init():
+def init(traces_dir: str):
     create_spans_table("Spans")
     create_spans_table("SynSpans")
     create_sampling_views()
-    fill_data(TRACES_DIR, "Spans")
+    fill_data(traces_dir, "Spans")
 
 
 def create_spans_table(table_name: str):
     cursor = conn.cursor()
+    # Drop the table if it exists
+    cursor.execute(f'DROP TABLE IF EXISTS {table_name};')
+    # Also drop the view if it exists
+    view_name = table_name.replace("Spans", "Traces")
+    cursor.execute(f'DROP VIEW IF EXISTS {view_name};')
     cmd = f'''CREATE TABLE {table_name} (
         traceId VARCHAR(50),
         spanId VARCHAR(50),
@@ -110,7 +112,13 @@ def fill_data(traces_dir: str, table_name: str, start_tx: int = 0, end_tx: int =
 
 def create_sampling_views(table_prefix: str = ""):
     cursor = conn.cursor()
+    
+    # Drop and recreate the head-based sampling views
     for sampling in SAMPLE_SIZES:
+        # Drop the view if it exists
+        cursor.execute(f'DROP VIEW IF EXISTS HeadBased{table_prefix}Traces{sampling};')
+        
+        # Create the view
         cursor.execute(f'''
         CREATE VIEW HeadBased{table_prefix}Traces{sampling} AS
             SELECT DISTINCT traceId
@@ -119,12 +127,17 @@ def create_sampling_views(table_prefix: str = ""):
             ORDER BY RANDOM()
             LIMIT (SELECT count(DISTINCT traceId) FROM {table_prefix}Spans) / {sampling};
         ''')
+    
+    # Drop and recreate other sampling views
+    cursor.execute(f'DROP VIEW IF EXISTS ErrorBased{table_prefix}Traces;')
     cursor.execute(f'''
     CREATE VIEW ErrorBased{table_prefix}Traces AS
         SELECT DISTINCT traceId
         FROM {table_prefix}Spans
         WHERE status = 1;
     ''')
+    
+    cursor.execute(f'DROP VIEW IF EXISTS DurationBased{table_prefix}Traces;')
     cursor.execute(f'''
     CREATE VIEW DurationBased{table_prefix}Traces AS
         SELECT DISTINCT traceId
@@ -132,12 +145,16 @@ def create_sampling_views(table_prefix: str = ""):
         GROUP BY traceId
         HAVING (max(endTime) - min(startTime)) / 1000 > 190;
     ''')
+    
+    cursor.execute(f'DROP VIEW IF EXISTS NoSampling{table_prefix}Traces;')
     cursor.execute(f'''
     CREATE VIEW NoSampling{table_prefix}Traces AS
         SELECT DISTINCT traceId
         FROM {table_prefix}Spans;
     ''')
+    
     for i in [1, 2, 5, 10, 15]:
+        cursor.execute(f'DROP VIEW IF EXISTS First{i}K{table_prefix}Traces;')
         cursor.execute(f'''
         CREATE VIEW First{i}K{table_prefix}Traces AS
             SELECT traceId
@@ -565,14 +582,14 @@ def simple_ablations():
     attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
 
 
-def create_rolling_tables(is_rolling: bool):
+def create_rolling_tables(is_rolling: bool, traces_dir: str):
     prefix = '' if is_rolling else 'No'
     for i, config in enumerate(ROLLING_EXPERIMENT_CONFIGS):
         try:
             create_spans_table(f"{prefix}RollingSpans{i}")
         except Exception as e:
             print("failed to create table", repr(e))
-        fill_data(TRACES_DIR, f"{prefix}RollingSpans{i}", start_tx=config.tx_start, end_tx=config.tx_end)
+        fill_data(traces_dir, f"{prefix}RollingSpans{i}", start_tx=config.tx_start, end_tx=config.tx_end)
 
     cursor = conn.cursor()
     for i in range(len(ROLLING_EXPERIMENT_CONFIGS)):
@@ -608,8 +625,8 @@ def create_rolling_tables(is_rolling: bool):
         fill_data(path, f"Syn{prefix}RollingSpans{i}")
 
 
-def rolling_experiment(is_rolling):
-    create_rolling_tables(is_rolling=is_rolling)
+def rolling_experiment(is_rolling, traces_dir: str):
+    create_rolling_tables(is_rolling=is_rolling, traces_dir=traces_dir)
     syn_tables = (
             [f"Syn{'' if is_rolling else 'No'}RollingSpans{i}" for i in range(len(ROLLING_EXPERIMENT_CONFIGS))]
             + [f"RollingSpans{i}HeadBased{sampling}" for i in range(len(ROLLING_EXPERIMENT_CONFIGS)) for sampling in
@@ -828,10 +845,14 @@ def selected_specifics():
 
 
 if __name__ == '__main__':
-    # init()
+    parser = argparse.ArgumentParser(description='Process trace data and run analysis')
+    parser.add_argument('traces_dir', type=str, required=True, help='Directory containing trace data')
+    args = parser.parse_args()
+    
+    init(args.traces_dir)
+    monitor_chain_length()
     # bottlenecks(["SynSpansChainLength2"])
     # monitor_with_syn_tables()
-    # monitor_chain_length()
     # rolling_experiment(is_rolling=True)
     # simple_ablations()
     # ctgan_gen_dim()

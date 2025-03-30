@@ -1,10 +1,9 @@
 import json
 import os
 import time
+import boto3
 from typing import Dict, List, NamedTuple, Tuple
 from dataclasses import asdict
-
-import boto3
 
 from drivers.base_driver import DriverType
 from drivers.netshare.netshare_driver import NetShareDriver

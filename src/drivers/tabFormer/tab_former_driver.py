@@ -9,8 +9,6 @@ from ml.app_denormalizer import denormalize_data
 from ml.app_normalizer import normalize_data
 from ml.app_utils import GenTConfig
 import ml
-from gent_utils.constants import TRACES_DIR
-
 TAB_FORMER_DIR = os.path.abspath(os.path.join(os.path.dirname(ml.__path__[0]), "..", "..", "TabFormer"))
 TAB_FORMER_INTERPRETER = os.path.join(TAB_FORMER_DIR, "venv", "bin", "python")
 BASE_TRAIN_PARAMS = [
@@ -117,7 +115,7 @@ class TabFormerDriver(BaseDriver):
 
     def train_and_generate(self) -> None:
         shutil.rmtree(self.get_work_folder(), ignore_errors=True)
-        normalize_data(TRACES_DIR, self.gen_t_config)
+        normalize_data(self.gen_t_config.traces_dir, self.gen_t_config)
         self._train()
         self._generate()
 

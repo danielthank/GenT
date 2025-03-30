@@ -1,16 +1,14 @@
 import contextlib
-import importlib
 import multiprocessing
 import os.path
-import sys
+import pandas as pd
+import argparse
 from concurrent.futures import ProcessPoolExecutor
 from typing import Optional, Iterable
-
 from drivers.base_driver import BaseDriver
 from drivers.gent.data import ALL_TRACES
 from drivers.gent.gent_driver import GenTDriver
-from fidelity.raw_sql import fill_benchmark
-from ml.app_utils import GenTConfig, clear, GenTBaseConfig
+from ml.app_utils import GenTConfig, clear
 from paper.ops_utils import FidelityResult, load_results, store_and_upload_results
 
 
@@ -34,7 +32,8 @@ def measure_configuration(
     print(f"Driver: {driver}, Result: {result}")
     with lock or contextlib.suppress():
         store_and_upload_results(driver.gen_t_config, result, driver.get_driver_name())
-    if "MacBook-Pro" not in os.uname().nodename:
+    # TODO: remove this check when we have a proper way to clear the data
+    if "fedora" not in os.uname().nodename:
         driver.upload_and_clear(True)
         clear()
     return result
@@ -50,10 +49,10 @@ def measure_multiple_configurations(drivers: Iterable[BaseDriver], max_workers=1
     print(result)
 
 
-def iterations_exp():
+def iterations_exp(traces_dir: str) -> None:
     print("GenT iterations (time-based)")
     configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=tx_count, iterations=iterations)
+        GenTConfig(chain_length=2, tx_start=0, tx_end=tx_count, iterations=iterations, traces_dir=traces_dir)
         for tx_count in [1_000]#, 2_000, 5_000, 10_000, 15_000]
         for iterations in [1, 2, 3, 4, 5, 6, 7, 10, 20, 30]
     ]
@@ -62,71 +61,74 @@ def iterations_exp():
         measure_configuration(GenTDriver(config), skip_if_exists=True)
 
 
-def batch_size():
+def batch_size(traces_dir: str) -> None:
     print("GenT changing CTGAN's generator dimension")
     measure_multiple_configurations(map(GenTDriver, [
-        GenTConfig(chain_length=2, tx_end=10_000),
-        GenTConfig(chain_length=2, tx_end=15_000),
-        GenTConfig(chain_length=2, tx_end=20_000),
+        GenTConfig(chain_length=2, tx_end=10_000, traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_end=15_000, traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_end=20_000, traces_dir=traces_dir),
     ]), max_workers=3)
 
 
-def simple_ablations():
+def simple_ablations(traces_dir: str) -> None:
     print("GenT simple_ablations")
     configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, independent_chains=True),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, with_gcn=False),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, start_time_with_metadata=True),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, independent_chains=True, traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, with_gcn=False, traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, start_time_with_metadata=True, traces_dir=traces_dir),
     ]
     for i, config in enumerate(configs):
         print(f"####### simple_ablations index: {i} ########")
         measure_configuration(GenTDriver(config), skip_if_exists=False)
 
 
-def ctgan_dim():
+def ctgan_dim(traces_dir: str) -> None:
     print("GenT ctgan_dim")
     configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(128,)),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(128, 128)),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(256, 256)),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(256,)),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(128,), traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(128, 128), traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(256, 256), traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(256,), traces_dir=traces_dir),
     ]
     for config in configs:
         print("#### ctgan_dim #####", config.generator_dim)
         measure_configuration(GenTDriver(config), skip_if_exists=True)
 
 
-def chain_length():
+def chain_length(traces_dir: str) -> None:
     print("GenT chain length")
     configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10),
-        GenTConfig(chain_length=3, tx_start=0, tx_end=ALL_TRACES, iterations=10),
-        GenTConfig(chain_length=4, tx_start=0, tx_end=ALL_TRACES, iterations=10),
-        GenTConfig(chain_length=5, tx_start=0, tx_end=ALL_TRACES, iterations=10),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
+        GenTConfig(chain_length=3, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
+        GenTConfig(chain_length=4, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
+        GenTConfig(chain_length=5, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
     ]
     for config in configs:
         print("#### Chain length #####", config.chain_length)
         measure_configuration(GenTDriver(config), skip_if_exists=True)
 
-
-def main(arg: Optional[str] = None) -> None:
-    arg = arg or sys.argv[1]
-    if arg == "chain_length":
-        chain_length()
-    elif arg == "ctgan_dim":
-        ctgan_dim()
-    elif arg == "iterations":
-        iterations_exp()
-    elif arg == "simple_ablations":
-        simple_ablations()
-    elif arg == "batch_size":
-        batch_size()
+def main():
+    parser = argparse.ArgumentParser(description='Run GenT experiments')
+    parser.add_argument('experiment', type=str, help='Experiment to run (chain_length, ctgan_dim, iterations, simple_ablations, batch_size)')
+    parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
+    args = parser.parse_args()
+    
+    if args.experiment == "chain_length":
+        chain_length(args.traces_dir)
+    elif args.experiment == "ctgan_dim":
+        ctgan_dim(args.traces_dir)
+    elif args.experiment == "iterations":
+        iterations_exp(args.traces_dir)
+    elif args.experiment == "simple_ablations":
+        simple_ablations(args.traces_dir)
+    elif args.experiment == "batch_size":
+        batch_size(args.traces_dir)
     else:
-        raise ValueError("Unknown experiment")
-
+        raise ValueError(f"Unknown experiment: {args.experiment}")
 
 if __name__ == "__main__":
-    iterations = 3
+    main()
+    # iterations = 3
     # for desc in os.listdir("/Users/saart/cmu/GenT/traces"):
     #     if desc == "wildryde":
     #         continue
@@ -138,6 +140,5 @@ if __name__ == "__main__":
     # driver = TabFormerDriver(GenTBaseConfig(chain_length=3, iterations=5))
     # measure_configuration(driver, skip_if_exists=False)
     # iterations_exp()
-    chain_length()
     # ctgan_dim()
     # simple_ablations()
