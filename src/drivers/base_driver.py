@@ -83,9 +83,10 @@ class BaseDriver:
         tar.close()
 
     def get_work_folder(self) -> str:
+        if not self.gen_t_config.traces_dir:
+            raise ValueError("traces_dir must be set in config")
         return os.path.abspath(os.path.join(
-            os.path.dirname(drivers.__path__[0]),
-            "..",
+            self.gen_t_config.traces_dir,
             "results",
             self.get_driver_name(),
             self.gen_t_config.to_string(),

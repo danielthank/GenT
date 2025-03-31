@@ -1,7 +1,6 @@
 import contextlib
 import multiprocessing
 import os.path
-import pandas as pd
 import argparse
 from concurrent.futures import ProcessPoolExecutor
 from typing import Optional, Iterable
@@ -17,8 +16,8 @@ def measure_configuration(
     lock: Optional[multiprocessing.synchronize.Lock] = None,
     skip_if_exists: bool = True,
 ) -> FidelityResult:
-    if skip_if_exists and driver.get_results_key() in load_results():
-        existing_result = load_results()[driver.get_results_key()]
+    if skip_if_exists and driver.get_results_key() in load_results(driver):
+        existing_result = load_results(driver)[driver.get_results_key()]
         print(f"Already processed {driver.get_results_key()}")
         return existing_result
 
@@ -31,7 +30,7 @@ def measure_configuration(
     )
     print(f"Driver: {driver}, Result: {result}")
     with lock or contextlib.suppress():
-        store_and_upload_results(driver.gen_t_config, result, driver.get_driver_name())
+        store_and_upload_results(driver, result, driver.get_driver_name())
     # TODO: remove this check when we have a proper way to clear the data
     if "fedora" not in os.uname().nodename:
         driver.upload_and_clear(True)

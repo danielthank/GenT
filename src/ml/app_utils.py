@@ -18,6 +18,8 @@ class GenTBaseConfig:
     metadata_int_size: int = 3
     batch_size: int = 10
     is_test: bool = False
+    # Remove default value once all initializations have traces_dir
+    traces_dir: str = None
 
     def to_string(self) -> str:
         default_config = asdict(GenTBaseConfig())
@@ -55,8 +57,6 @@ class GenTConfig(GenTBaseConfig):
     independent_chains: bool = False
     tx_start: int = 0
     tx_end: int = 1000
-    # Remove default value once all initializations have traces_dir
-    traces_dir: str = None
 
     @staticmethod
     def load(**kwargs) -> "GenTConfig":
