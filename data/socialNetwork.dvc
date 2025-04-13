@@ -1,6 +1,6 @@
 outs:
-- md5: 9e211eb0ac1e93c97343c85fad01f4b6.dir
-  size: 59736310
-  nfiles: 1
+- md5: 60cf2c90eca2c126ddda47ff4cdc3190.dir
+  size: 87951171
+  nfiles: 3
   hash: md5
   path: socialNetwork

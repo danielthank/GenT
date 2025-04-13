@@ -1,0 +1,20 @@
+schema: '2.0'
+stages:
+  start_time:
+    cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent
+      --test start_time
+    deps:
+    - path: ../../data/socialNetwork/baseline/gent
+      hash: md5
+      md5: 9804406e6b6d9c13f561308690ca6253.dir
+      size: 28214861
+      nfiles: 2
+    - path: debug.py
+      hash: md5
+      md5: 63802069331b2365e28abe89cc84ca3d
+      size: 2165
+    outs:
+    - path: timestamps_by_graph.pkl
+      hash: md5
+      md5: 2491aec34497ccf302b80a1c14f0068a
+      size: 85321

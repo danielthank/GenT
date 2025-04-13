@@ -1,0 +1,8 @@
+stages:
+  start_time:
+    cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent --test start_time
+    deps:
+    - ../../data/socialNetwork/baseline/gent
+    - debug.py
+    outs:
+    - timestamps_by_graph.pkl
