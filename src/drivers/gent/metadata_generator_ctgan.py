@@ -27,7 +27,6 @@ from ml.app_utils import GenTConfig, get_key_name, get_key_value
 from gent_utils.utils import NpEncoder, device
 
 PROFILE = False
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "ctgan")
 warnings.filterwarnings('ignore', module='rdt')
 try:
     set_start_method('spawn')  # To handle multiprocessing with pytorch
@@ -253,7 +252,8 @@ class MetadataGenerator:
         self.use_best(is_root=False)
         self.find_best_seed(is_root=False)
 
-    def _save_generator(self, gen: CTGAN, name: str, path: str = MODEL_PATH):
+    def _save_generator(self, gen: CTGAN, name: str):
+        path = self.gen_t_config.output_dir
         pickle.dump(gen, open(f"{path}/{name}_all.pkl", "wb"))
         # This is a hack to make the model smaller
         sampler, gen._data_sampler = gen._data_sampler, DataSampler(np.zeros((0, 0)), np.zeros((0, 0)), True)
@@ -263,35 +263,38 @@ class MetadataGenerator:
         gen.save(f"{path}/{name}_ctgan_generator.pkl")
         gen._data_sampler = sampler
 
-    def save(self, path=MODEL_PATH):
-        self.save_root(path)
-        self.save_root_local(path)
-        self.save_chained(path)
-        self.save_chain_local(path)
+    def save(self):
+        self.save_root()
+        self.save_chained()
 
-    def save_root(self, path=MODEL_PATH):
+    def save_root(self):
+        path = self.gen_t_config.output_dir
         os.makedirs(path, exist_ok=True)
-        self._save_generator(self.root_generator, "root", path)
+        self._save_generator(self.root_generator, "root")
         pickle.dump(self.column_to_values, open(f"{path}/column_to_values.pkl", "wb"))
         pickle.dump(self.root_generator.graph_index_to_edges, open(f"{path}/graph_index_to_edges.pkl", "wb"))
         pickle.dump(self.node_to_index, open(f"{path}/node_to_index.pkl", "wb"))
         pickle.dump(self.graph_index_to_chains, open(f"{path}/graph_index_to_chains.pkl", "wb"))
         pickle.dump(self.best_root_seed, open(f"{path}/best_root_seed.pkl", "wb"))
-        self.save_root_local(path)
+        self.save_root_local()
 
-    def save_root_local(self, path=MODEL_PATH):
+    def save_root_local(self):
+        path = self.gen_t_config.output_dir
         pickle.dump(self.root_training_mid_data, open(f"{path}/root_local.pkl", "wb"))
 
-    def save_chained(self, path=MODEL_PATH):
+    def save_chained(self):
+        path = self.gen_t_config.output_dir
         os.makedirs(path, exist_ok=True)
-        self._save_generator(self.chained_generator, "chained", path)
+        self._save_generator(self.chained_generator, "chained")
         pickle.dump(self.best_chained_seed, open(f"{path}/best_chained_seed.pkl", "wb"))
-        self.save_chain_local(path)
+        self.save_chain_local()
 
-    def save_chain_local(self, path=MODEL_PATH):
+    def save_chain_local(self):
+        path = self.gen_t_config.output_dir
         pickle.dump(self.chain_training_mid_data, open(f"{path}/chain_local.pkl", "wb"))
 
-    def load(self, path=MODEL_PATH, only_root: bool = False, only_chained: bool = False):
+    def load(self, only_root: bool = False, only_chained: bool = False):
+        path = self.gen_t_config.output_dir
         def load_generator(name):
             generator = CTGAN.load(f"{path}/{name}_ctgan_generator.pkl")
             generator._device = device
@@ -312,19 +315,21 @@ class MetadataGenerator:
         self.node_to_index = pickle.load(open(f"{path}/node_to_index.pkl", "rb"))
         self.graph_index_to_chains = pickle.load(open(f"{path}/graph_index_to_chains.pkl", "rb"))
 
-    def load_all(self, path=MODEL_PATH) -> "MetadataGenerator":
-        self.load_all_root(path)
-        self.load_all_chained(path)
+    def load_all(self) -> "MetadataGenerator":
+        self.load_all_root()
+        self.load_all_chained()
         return self
 
-    def load_all_root(self, path=MODEL_PATH) -> "MetadataGenerator":
+    def load_all_root(self) -> "MetadataGenerator":
+        path = self.gen_t_config.output_dir
         self.load(path, only_root=True)
         self.root_generator = pickle.load(open(f"{path}/root_all.pkl", "rb"))
         self.root_generator.functional_loss = partial(self.functional_loss, is_root=True)
         self.root_training_mid_data = pickle.load(open(f"{path}/root_local.pkl", 'rb'))
         return self
 
-    def load_all_chained(self, path=MODEL_PATH) -> "MetadataGenerator":
+    def load_all_chained(self) -> "MetadataGenerator":
+        path = self.gen_t_config.output_dir
         self.load(path, only_chained=True)
         self.chained_generator = pickle.load(open(f"{path}/chained_all.pkl", "rb"))
         self.chained_generator.functional_loss = partial(self.functional_loss, is_root=False)

@@ -21,7 +21,6 @@ from fidelity.utils import compare_distributions
 from ml.app_utils import GenTConfig
 from gent_utils.utils import device
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "start_time_generator")
 FAKE = torch.zeros((1, 1)).to(device)
 REAL = torch.ones((1, 1)).to(device)
 PROFILE = False
@@ -250,7 +249,8 @@ class StartTimesGenerator:
         self.generator._generator.load_state_dict(self.best)
         # TODO: do we need to use the discriminator as well?
 
-    def save(self, path=MODEL_PATH):
+    def save(self):
+        path = self.gen_t_config.output_dir
         os.makedirs(path, exist_ok=True)
         pickle.dump(self.generator, open(f"{path}/generator_all.pkl", "wb"))
         # This is a hack to make the model smaller
@@ -267,10 +267,12 @@ class StartTimesGenerator:
         pickle.dump(self.min_real_timestamp, open(f"{path}/min_real_timestamp.pkl", "wb"))
         pickle.dump(self.max_real_timestamp, open(f"{path}/max_real_timestamp.pkl", "wb"))
 
-    def save_local(self, path=MODEL_PATH):
+    def save_local(self):
+        path = self.gen_t_config.output_dir
         pickle.dump(self.training_mid_data, open(f"{path}/local.pkl", "wb"))
 
-    def load(self, path=MODEL_PATH):
+    def load(self):
+        path = self.gen_t_config.output_dir
         if self.gen_t_config.start_time_with_metadata:
             return
         self.generator = CTGAN.load(f"{path}/start_time_ctgan_generator.pkl")
@@ -289,7 +291,8 @@ class StartTimesGenerator:
         self.min_real_timestamp = pickle.load(open(f"{path}/min_real_timestamp.pkl", "rb"))
         self.max_real_timestamp = pickle.load(open(f"{path}/max_real_timestamp.pkl", "rb"))
 
-    def load_all(self, path=MODEL_PATH) -> "StartTimesGenerator":
+    def load_all(self) -> "StartTimesGenerator":
+        path = self.gen_t_config.output_dir
         self.load(path)
         self.is_roll = True
         self.generator = pickle.load(open(f"{path}/generator_all.pkl", "rb"))

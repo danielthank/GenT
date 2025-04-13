@@ -1,8 +1,20 @@
 stages:
   start_time:
-    cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent --test start_time
+    cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent --output_dir ./start_time_generator
+      --test start_time
     deps:
     - ../../data/socialNetwork/baseline/gent
     - debug.py
     outs:
     - timestamps_by_graph.pkl
+    - start_time_generator
+  metadata:
+    cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent --output_dir ./metadata_generator
+      --test metadata
+    deps:
+    - ../../data/socialNetwork/baseline/gent
+    - debug.py
+    - timestamps_by_graph.pkl
+    outs:
+    - metadata_result
+    - metadata_generator
