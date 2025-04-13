@@ -65,6 +65,7 @@ def _handle_jaeger_trace(jaeger_trace: dict) -> dict:
                 ((tag["key"] == "error" and tag["value"] is True)
                 or tag["key"] == "http.status_code" and tag["value"] > 300)
                 for tag in span["tags"]),
+            # TODO: change children_ids to parent_ids
             children_ids=[span_id_to_ts_name.get(ref["spanID"]) for ref in span["references"] if ref["refType"] == "CHILD_OF"],
             group="",
             metadata={t["key"]: t["value"] for t in span["tags"]} | {f"process_{t['key']}": t["value"] for t in jaeger_trace['processes'][span["processID"]]['tags']},
@@ -87,10 +88,13 @@ def translate_jaeger_to_gent(from_dir: str, to_dir: Optional[str] = None) -> Non
 def translate_jaeger_to_gent_from_list(jaeger_traces: List[dict], filepath: Optional[str] = None) -> None:
         root_cause_filepath = filepath.rsplit('.', 1)[0] + '.root_cause.json'
         
+        success = 0
+        fail = 0
         with open(filepath, "w") as f, open(root_cause_filepath, "w") as rf:
             for jaeger_trace in jaeger_traces:
                 gent_trace = _handle_jaeger_trace(jaeger_trace)
                 if gent_trace:
+                    success += 1
                     f.write(json.dumps(gent_trace) + ",\n")
                     if "rootCause" in jaeger_trace:
                         root_cause_data = {
@@ -98,6 +102,9 @@ def translate_jaeger_to_gent_from_list(jaeger_traces: List[dict], filepath: Opti
                             "rootCause": jaeger_trace["rootCause"]
                         }
                         rf.write(json.dumps(root_cause_data) + ",\n")
+                else:
+                    fail += 1
+        print(f"Translated {success} traces, {fail} failed.")
 
 
 def main():

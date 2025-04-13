@@ -129,12 +129,24 @@ class StartTimesGenerator:
         self.max_real_timestamp = max(t[1] for t in self.data)
 
     def generate_by_graph_index(self, graph_index: int, count: int):
-        count_to_generate = max(2, count)  # CTGAN support generation of at least 2
-        generated = self.generator.sample(
-            graph_index_list=torch.Tensor([graph_index for _ in range(count_to_generate)]),
-            chain_index_list=torch.Tensor([0 for _ in range(count_to_generate)])
-        )["startTime"].values.tolist()
-        return generated[:count]
+        valid_generated_timestamps = []
+        
+        while len(valid_generated_timestamps) < count:
+            count_to_generate = max(2, count - len(valid_generated_timestamps)) # CTGAN support generation of at least 2
+            
+            generated = self.generator.sample(
+                graph_index_list=torch.Tensor([graph_index for _ in range(count_to_generate)]),
+                chain_index_list=torch.Tensor([0 for _ in range(count_to_generate)])
+            )["startTime"].values.tolist()
+            
+            for timestamp in generated:
+                if self.min_real_timestamp <= timestamp <= self.max_real_timestamp:
+                    valid_generated_timestamps.append(timestamp)
+                    
+                if len(valid_generated_timestamps) >= count:
+                    break
+        
+        return valid_generated_timestamps[:count]
 
     def _generate_corpus(self, seed: int, use_node_indexes: bool = False) -> Dict[str, List[int]]:
         graph_counts = get_graph_counts(tx_start=self.gen_t_config.tx_start, tx_end=self.gen_t_config.tx_end, traces_dir=self.gen_t_config.traces_dir)

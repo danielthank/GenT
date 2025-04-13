@@ -231,11 +231,11 @@ def prepare_tx_structure(
                 "duration": component.duration,
             }
         )
-        for child_id in component.children_ids:
+        for parent_id in component.children_ids:
             edges.append(
                 {
-                    "source": component.component_id,
-                    "target": child_id,
+                    "source": parent_id,
+                    "target": component.component_id,
                 }
             )
     if not edges:

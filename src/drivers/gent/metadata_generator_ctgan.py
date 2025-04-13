@@ -386,6 +386,7 @@ class MetadataGenerator:
             else:
                 trigger_fields = [c.replace(f'_{0}', '', 1) for c in get_node_columns(0)]
                 metadata = pd.DataFrame([metadata for graph_index, ts, chain_index, metadata in curr_chain_to_generate])[trigger_fields]
+
             tx_start_time_list = pd.DataFrame([ts for graph_index, ts, chain_index, metadata in curr_chain_to_generate], columns=['txStartTime'])
             bulk_data = (self.root_generator if is_root else self.chained_generator).sample(
                 graph_index_list=torch.Tensor([graph_index for graph_index, ts, chain_index, metadata in curr_chain_to_generate]),
@@ -395,6 +396,7 @@ class MetadataGenerator:
                 columns=None,
                 normalize_trigger_data=True,
             )
+
             if len(bulk_data) != len(curr_chain_to_generate):
                 raise Exception(f"Expected {len(curr_chain_to_generate)} samples but got {len(bulk_data)}")
             for row, (graph_index, ts, chain_index, _) in zip(iter(bulk_data.iloc), curr_chain_to_generate):

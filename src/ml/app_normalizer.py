@@ -248,7 +248,7 @@ def extract_node_features(
 
 
 def get_chains(
-    transaction: dict, config: GenTConfig
+    transaction: dict, child_to_parent: dict, config: GenTConfig
 ) -> Generator[List[dict], None, None]:
     """
     This method returns a generator of chains, where each chain is a list of nodes.
@@ -256,33 +256,38 @@ def get_chains(
     Order the children by lexicographic order of their name.
     """
     nodes: Dict[str, dict] = transaction["nodesData"]
-    node_names: Dict[str, int] = {
-        node_id: get_name(nodes, node_id) for node_id, n in nodes.items()
-    }
-    Edge = NamedTuple("Edge", [("source", str), ("target", str)])
-    remaining_edges = {Edge(e["source"], e["target"]) for e in transaction["graph"]["edges"]}
-    assert len(remaining_edges) == len(set(remaining_edges))
+    outgoing_edges_cnt = {node_id: 0 for node_id in nodes.keys()}
+    for parent in child_to_parent.values():
+        outgoing_edges_cnt[parent] = outgoing_edges_cnt.get(parent, 0) + 1
+    
+    queue = [node_id for node_id, cnt in outgoing_edges_cnt.items() if cnt == 0]
+    visited = set()
 
-    if config.chain_length == 1:
-        for node in nodes.values():
-            yield [node]
-        return
-
-    while remaining_edges:
-        edge_of_first_node = min(remaining_edges, key=lambda e: node_names[e.source] + node_names[e.target])
-        first_node = nodes[edge_of_first_node.source]
-        chain = [first_node]
+    while queue:
+        node_id = queue.pop(0)
+        if node_id in child_to_parent:
+            parent = child_to_parent[node_id]
+            outgoing_edges_cnt[parent] -= 1
+            if outgoing_edges_cnt[parent] == 0:
+                queue.append(parent)
+        chain = []
         for _ in range(config.chain_length - 1):
-            edges = [e for e in remaining_edges if e.source == chain[-1]["id"]]
-            if not edges:
+            if node_id in visited:
                 break
-            edge = min(edges, key=lambda e: node_names[e.source] + node_names[e.target])
-            chain.append(nodes[edge.target])
-            remaining_edges.remove(edge)
-        all_nodes.update(n["gent_name"] for n in chain)
-        all_chains.add("&".join(n["gent_name"] for n in chain))
-        yield chain
-
+            visited.add(node_id)
+            chain.append(nodes[node_id])
+            node_id = child_to_parent.get(node_id)
+            if node_id is None:
+                break
+        if node_id is not None:
+            chain.append(nodes[node_id])
+        if len(chain) == 1:
+            continue
+        # print("chain", [item["id"] for item in chain])
+        # Processed from leaf to root so reverse the chain
+        yield chain[::-1]
+    # all_nodes.update(n["gent_name"] for n in chain)
+    # all_chains.add("&".join(n["gent_name"] for n in chain))
 
 def get_default_row(config: GenTConfig) -> RowType:
     return (
@@ -312,15 +317,16 @@ def extract_rows_from_transaction(
 
     nodes: Dict[str, dict] = transaction["nodesData"]
     child_to_parent: Dict[str, dict] = {
-        n["target"]: nodes[n["source"]] for n in transaction["graph"]["edges"]
+        e["target"]: e["source"] for e in transaction["graph"]["edges"]
     }
+    root_nodes = set(nodes.keys()) - set(child_to_parent.keys())
     set_gent_name(nodes)
     tx_start_time = transaction["details"]["startTime"]
     if len(nodes) == 1:
         print("Found a transaction with no edges")
         return []
     processed_nodes = set()
-    for chain in get_chains(transaction, config=config):
+    for chain in get_chains(transaction, child_to_parent, config=config):
         chain_id = "#".join(n["gent_name"] for n in chain)
         row = [
             int(transaction["details"]["transactionId"], 16),
@@ -329,7 +335,7 @@ def extract_rows_from_transaction(
         ]
         for node in chain:
             node_features = extract_node_features(
-                node, child_to_parent.get(node["id"]), tx_start_time, config=config
+                node, nodes.get(child_to_parent.get(node["id"])), tx_start_time, config=config
             )
             row.extend(node_features)
         if len(chain) < config.chain_length:
@@ -338,7 +344,7 @@ def extract_rows_from_transaction(
                 row.extend(default_row)
 
         if tag_root_chains:
-            row.append(chain[0]["gent_name"] not in processed_nodes)
+            row.append(chain[0]["id"] in root_nodes)
         processed_nodes.update(n["gent_name"] for n in chain)
 
         transaction_data.append(row)
