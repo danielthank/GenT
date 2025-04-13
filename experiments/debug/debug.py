@@ -1,3 +1,4 @@
+import os
 import argparse
 import pickle
 from ml.app_utils import GenTConfig
@@ -25,8 +26,9 @@ def test_start_time(config):
     print(f"Max timestamp: {max_timestamp}")
 
     start_time_generator.compare()
-
-    pickle.dump(timestamps_by_graph, open("timestamps_by_graph.pkl", "wb"))
+    os.makedirs(config.results_dir, exist_ok=True)
+    path = os.path.join(config.results_dir, "timestamps_by_graph.pkl")
+    pickle.dump(timestamps_by_graph, open(path, "wb"))
 
     start_time_generator.save()
 
@@ -34,12 +36,13 @@ def test_start_time(config):
 def test_metadata(config):
     # driver = GenTDriver(config)
 
-    timestamps_by_graph = pickle.load(open("timestamps_by_graph.pkl", "rb"))
+    path = os.path.join(config.results_dir, "timestamps_by_graph.pkl")
+    timestamps_by_graph = pickle.load(open(path, "rb"))
 
     metadata_generator = MetadataGenerator.get(config)
     metadata_generator.train_root()
     metadata_generator.train_chained()
-    metadata_generator.generate_traces_corpus("metadata_result", timestamps_by_graph)
+    metadata_generator.generate_traces_corpus(config.results_dir, timestamps_by_graph)
     metadata_generator.save()
     #metadata_generator.generate_metadata_corpus()
     #metadata_generator.compare()
@@ -47,11 +50,12 @@ def test_metadata(config):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GenT Driver Test")
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
-    parser.add_argument('--output_dir', type=str, required=True, help='Directory to save output data')
+    parser.add_argument('--models_dir', type=str, required=True, help='Directory to store models')
+    parser.add_argument('--results_dir', type=str, required=True, help='Directory to store results')
     parser.add_argument('--test', type=str, nargs='+', required=True, help='Tests to run (start_time, metadata)')
     args = parser.parse_args()
 
-    config = GenTConfig(chain_length=3, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=args.traces_dir, output_dir=args.output_dir)
+    config = GenTConfig(chain_length=3, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=args.traces_dir, models_dir=args.models_dir, results_dir=args.results_dir)
     if "start_time" in args.test:
         test_start_time(config)
     if "metadata" in args.test:
