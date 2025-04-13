@@ -1,0 +1,26 @@
+schema: '2.0'
+stages:
+  generate:
+    cmd: PYTHONPATH=../../src python chain_length.py --traces_dir ../../data/socialNetwork/baseline/gent
+      --models_dir ./models --results_dir ./results
+    deps:
+    - path: ../../data/socialNetwork/baseline/raw_jaeger
+      hash: md5
+      md5: cf1c4433c86dfbaf2e1adbe55efb352b.dir
+      size: 59736310
+      nfiles: 1
+    - path: chain_length.py
+      hash: md5
+      md5: 356b6d8755389ce91aed0f73b70a1b87
+      size: 2103
+    outs:
+    - path: ./models
+      hash: md5
+      md5: 85a39b45cada397ab3ba6326e13d25b2.dir
+      size: 150503465
+      nfiles: 80
+    - path: ./results
+      hash: md5
+      md5: aef8030e8e5113f5de5f6b9854d637d0.dir
+      size: 100279607
+      nfiles: 5

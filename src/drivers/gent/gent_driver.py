@@ -1,4 +1,3 @@
-import boto3
 import os
 import shutil
 import tarfile
@@ -7,7 +6,6 @@ import time
 from typing import List
 
 from multiprocessing.pool import Pool
-
 from drivers.base_driver import BaseDriver, DriverType
 from drivers.gent.data import ALL_TRACES
 from drivers.gent.metadata_generator_ctgan import MetadataGenerator, \
@@ -31,23 +29,24 @@ class GenTDriver(BaseDriver):
         return "GenT"
 
     def get_normalized_generated_data_folder(self):
-        return os.path.join(self.get_work_folder(), "generated")
-
+        return os.path.join(self.get_results_folder(), "generated")
+    
     def _get_model_files(self) -> List[str]:
+        # TODO: verify if these covers all the files
         return [
-            os.path.join(self.get_work_folder(), "metadata", "chained_ctgan_generator.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "root_ctgan_generator.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "column_to_values.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "graph_index_to_chains.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "graph_index_to_edges.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "node_to_index.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "best_root_seed.pkl"),
-            os.path.join(self.get_work_folder(), "metadata", "best_chained_seed.pkl"),
-            os.path.join(self.get_work_folder(), "start_time", "start_time_ctgan_generator.pkl"),
-            os.path.join(self.get_work_folder(), "start_time", "best_seed.pkl"),
-            os.path.join(self.get_work_folder(), "start_time", "graph_values.pkl"),
-            os.path.join(self.get_work_folder(), "start_time", "min_real_timestamp.pkl"),
-            os.path.join(self.get_work_folder(), "start_time", "max_real_timestamp.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "chained_ctgan_generator.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "root_ctgan_generator.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "column_to_values.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "graph_index_to_chains.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "graph_index_to_edges.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "node_to_index.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "best_root_seed.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "best_chained_seed.pkl"),
+            os.path.join(self.get_models_folder(), "start_time", "start_time_ctgan_generator.pkl"),
+            os.path.join(self.get_models_folder(), "start_time", "best_seed.pkl"),
+            os.path.join(self.get_models_folder(), "start_time", "graph_values.pkl"),
+            os.path.join(self.get_models_folder(), "start_time", "min_real_timestamp.pkl"),
+            os.path.join(self.get_models_folder(), "start_time", "max_real_timestamp.pkl"),
         ]
 
     def get_model_size(self) -> int:
@@ -62,35 +61,17 @@ class GenTDriver(BaseDriver):
         tar.close()
         return target_file
 
-    def download(self):
-        s3_key = f"{self.get_driver_name()}/{self.gen_t_config.to_string()}.tar.gz"
-        local_path = os.path.join(self.get_work_folder(), "downloaded.tar.gz")
-
-        print("Downloading model files from s3")
-        os.makedirs(self.get_work_folder(), exist_ok=True)
-        s3 = boto3.session.Session(profile_name="gent").resource('s3')
-        s3.Bucket("gent-results").download_file(s3_key, local_path)
-
-        print("Unzipping model files")
-        tar = tarfile.open(local_path, "r:gz")
-        for file in tar.getmembers():
-            subdir, file_name = file.name.split("/")[-2:]
-            os.makedirs(os.path.join(self.get_work_folder(), subdir), exist_ok=True)
-            file.name = file_name
-            tar.extract(file, os.path.join(self.get_work_folder(), subdir))
-        tar.close()
-
     def train(self) -> None:
-        shutil.rmtree(self.get_work_folder(), ignore_errors=True)
+        shutil.rmtree(self.get_results_folder(), ignore_errors=True)
         start = time.time()
         # train_and_save_start_time(self.gen_t_config, os.path.join(self.get_work_folder(), "start_time"))
         # train_and_save_root(self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))
         # train_and_save_chained(self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))
         with Pool(processes=3) as pool:
             processes = [
-                pool.apply_async(train_and_save_start_time, (self.gen_t_config, os.path.join(self.get_work_folder(), "start_time"))),
-                pool.apply_async(train_and_save_root, (self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))),
-                pool.apply_async(train_and_save_chained, (self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))),
+                pool.apply_async(train_and_save_start_time, (self.gen_t_config, os.path.join(self.get_results_folder(), "start_time"))),
+                pool.apply_async(train_and_save_root, (self.gen_t_config, os.path.join(self.get_results_folder(), "metadata"))),
+                pool.apply_async(train_and_save_chained, (self.gen_t_config, os.path.join(self.get_results_folder(), "metadata"))),
             ]
             [p.get() for p in processes]  # raise exceptions if any
             pool.close()
@@ -117,20 +98,20 @@ class GenTDriver(BaseDriver):
     def get_start_time_generator(self) -> StartTimesGenerator:
         if not self.start_time_generator:
             self.start_time_generator = StartTimesGenerator.get(self.gen_t_config)
-            self.start_time_generator.load(path=os.path.join(self.get_work_folder(), "start_time"))
+            self.start_time_generator.load()
         return self.start_time_generator
 
     def get_metadata_generator(self) -> MetadataGenerator:
         if not self.metadata_generator:
             self.metadata_generator = MetadataGenerator.get(self.gen_t_config)
-            self.metadata_generator.load(path=os.path.join(self.get_work_folder(), "metadata"))
+            self.metadata_generator.load()
         return self.metadata_generator
 
     def store_metric(self, metric_name: str, value: float) -> None:
-        open(os.path.join(self.get_work_folder(), f"{metric_name}.txt"), "w").write(str(value))
+        open(os.path.join(self.get_results_folder(), f"{metric_name}.txt"), "w").write(str(value))
 
     def get_metric(self, metric_name: str) -> float:
-        path = os.path.join(self.get_work_folder(), f"{metric_name}.txt")
+        path = os.path.join(self.get_results_folder(), f"{metric_name}.txt")
         if not os.path.exists(path):
             raise Exception(f"Metric {metric_name} not found")
         return float(open(path, "r").read())

@@ -33,6 +33,7 @@ class StartTimesGenerator:
                  functional_loss_iterations: int, functional_loss_cliff: int, noise_dim: int = 32,
                  is_roll: bool = False) -> None:
         self.gen_t_config = gen_t_config
+        self.models_dir = os.path.join(gen_t_config.models_dir, "start_time")
         self.noise_dim = noise_dim
         self.generator = CTGAN(
             epochs=gen_t_config.iterations, verbose=True, device=device,
@@ -250,7 +251,7 @@ class StartTimesGenerator:
         # TODO: do we need to use the discriminator as well?
 
     def save(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         os.makedirs(path, exist_ok=True)
         pickle.dump(self.generator, open(f"{path}/generator_all.pkl", "wb"))
         # This is a hack to make the model smaller
@@ -268,11 +269,11 @@ class StartTimesGenerator:
         pickle.dump(self.max_real_timestamp, open(f"{path}/max_real_timestamp.pkl", "wb"))
 
     def save_local(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         pickle.dump(self.training_mid_data, open(f"{path}/local.pkl", "wb"))
 
     def load(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         if self.gen_t_config.start_time_with_metadata:
             return
         self.generator = CTGAN.load(f"{path}/start_time_ctgan_generator.pkl")
@@ -292,8 +293,8 @@ class StartTimesGenerator:
         self.max_real_timestamp = pickle.load(open(f"{path}/max_real_timestamp.pkl", "rb"))
 
     def load_all(self) -> "StartTimesGenerator":
-        path = self.gen_t_config.output_dir
-        self.load(path)
+        path = self.models_dir
+        self.load()
         self.is_roll = True
         self.generator = pickle.load(open(f"{path}/generator_all.pkl", "rb"))
         self.generator.functional_loss = self.functional_loss
@@ -333,8 +334,7 @@ def train_and_save(gen_t_config: GenTConfig, path: Union[str, Path], is_roll: bo
     gen = StartTimesGenerator.get(gen_t_config, is_roll=is_roll)
     assert gen_t_config.iterations >= gen.functional_loss_iterations
     gen.train()
-    gen.save(path=str(path))
-    gen.save_local(path=str(path))
+    gen.save()
     print("Done train_and_save start_time fidelity:", gen.best_fidelity)
 
 
@@ -345,8 +345,7 @@ def continue_train_and_save(gen_t_config: GenTConfig, path: Union[str, Path], fr
     gen = StartTimesGenerator.get(gen_t_config, is_roll=True)
     gen.load_all(path=str(from_path))
     gen.train()
-    gen.save(path=str(path))
-    gen.save_local(path=str(path))
+    gen.save()
     print("\nStart time root fidelity:", gen.best_fidelity, gen.best_seed)
 
 

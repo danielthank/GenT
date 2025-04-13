@@ -1,13 +1,12 @@
 import contextlib
 import multiprocessing
-import os.path
 import argparse
 from concurrent.futures import ProcessPoolExecutor
 from typing import Optional, Iterable
 from drivers.base_driver import BaseDriver
 from drivers.gent.data import ALL_TRACES
 from drivers.gent.gent_driver import GenTDriver
-from ml.app_utils import GenTConfig, clear
+from ml.app_utils import GenTConfig
 from paper.ops_utils import FidelityResult, load_results, store_and_upload_results
 
 
@@ -31,10 +30,6 @@ def measure_configuration(
     print(f"Driver: {driver}, Result: {result}")
     with lock or contextlib.suppress():
         store_and_upload_results(driver, result, driver.get_driver_name())
-    # TODO: remove this check when we have a proper way to clear the data
-    if "fedora" not in os.uname().nodename:
-        driver.upload_and_clear(True)
-        clear()
     return result
 
 
@@ -52,7 +47,7 @@ def iterations_exp(traces_dir: str) -> None:
     print("GenT iterations (time-based)")
     configs = [
         GenTConfig(chain_length=2, tx_start=0, tx_end=tx_count, iterations=iterations, traces_dir=traces_dir)
-        for tx_count in [1_000]#, 2_000, 5_000, 10_000, 15_000]
+        for tx_count in [1_000, 2_000, 5_000, 10_000]
         for iterations in [1, 2, 3, 4, 5, 6, 7, 10, 20, 30]
     ]
     for config in configs:
@@ -94,27 +89,13 @@ def ctgan_dim(traces_dir: str) -> None:
         measure_configuration(GenTDriver(config), skip_if_exists=True)
 
 
-def chain_length(traces_dir: str) -> None:
-    print("GenT chain length")
-    configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
-        GenTConfig(chain_length=3, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
-        GenTConfig(chain_length=4, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
-        GenTConfig(chain_length=5, tx_start=0, tx_end=ALL_TRACES, iterations=10, traces_dir=traces_dir),
-    ]
-    for config in configs:
-        print("#### Chain length #####", config.chain_length)
-        measure_configuration(GenTDriver(config), skip_if_exists=True)
-
 def main():
     parser = argparse.ArgumentParser(description='Run GenT experiments')
-    parser.add_argument('experiment', type=str, help='Experiment to run (chain_length, ctgan_dim, iterations, simple_ablations, batch_size)')
+    parser.add_argument('experiment', type=str, help='Experiment to run (ctgan_dim, iterations, simple_ablations, batch_size)')
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     args = parser.parse_args()
     
-    if args.experiment == "chain_length":
-        chain_length(args.traces_dir)
-    elif args.experiment == "ctgan_dim":
+    if args.experiment == "ctgan_dim":
         ctgan_dim(args.traces_dir)
     elif args.experiment == "iterations":
         iterations_exp(args.traces_dir)

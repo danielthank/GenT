@@ -20,11 +20,13 @@ class GenTBaseConfig:
     is_test: bool = False
     # Remove default value once all initializations have traces_dir
     traces_dir: str = None
+    models_dir: str = None
+    results_dir: str = None
 
     def to_string(self) -> str:
         default_config = asdict(GenTBaseConfig())
 
-        return ".".join(f"{k}={str(v).split('/')[-1]}" for k, v in asdict(self).items() if v != default_config.get(k))
+        return ".".join(f"{k}={str(v).split('/')[-1]}" for k, v in asdict(self).items() if v != default_config.get(k) and k != "traces_dir")
 
     def replace(self, key: str, value: Any) -> "GenTBaseConfig":
         data = asdict(self)
@@ -33,7 +35,7 @@ class GenTBaseConfig:
 
     def get_raw_normalized_data_dir(self) -> str:
         return os.path.join(
-            os.path.dirname(__file__) if not self.is_test else "/tmp",
+            os.path.dirname(__file__) if self.is_test else "/tmp",
             "raw_normalized_data",
             self.to_string(),
         )

@@ -59,6 +59,7 @@ class MetadataGenerator:
     def __init__(self, gen_t_config: GenTConfig, functional_loss_freq: int,
                  functional_loss_iterations: int, functional_loss_cliff: int, is_roll: bool = False) -> None:
         self.gen_t_config = gen_t_config
+        self.models_dir = os.path.join(gen_t_config.models_dir, "metadata")
         self.n_epochs = self.gen_t_config.iterations
         self.root_generator: Optional[CTGAN] = None
         self.chained_generator: Optional[CTGAN] = None
@@ -253,7 +254,7 @@ class MetadataGenerator:
         self.find_best_seed(is_root=False)
 
     def _save_generator(self, gen: CTGAN, name: str):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         pickle.dump(gen, open(f"{path}/{name}_all.pkl", "wb"))
         # This is a hack to make the model smaller
         sampler, gen._data_sampler = gen._data_sampler, DataSampler(np.zeros((0, 0)), np.zeros((0, 0)), True)
@@ -268,7 +269,7 @@ class MetadataGenerator:
         self.save_chained()
 
     def save_root(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         os.makedirs(path, exist_ok=True)
         self._save_generator(self.root_generator, "root")
         pickle.dump(self.column_to_values, open(f"{path}/column_to_values.pkl", "wb"))
@@ -279,22 +280,22 @@ class MetadataGenerator:
         self.save_root_local()
 
     def save_root_local(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         pickle.dump(self.root_training_mid_data, open(f"{path}/root_local.pkl", "wb"))
 
     def save_chained(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         os.makedirs(path, exist_ok=True)
         self._save_generator(self.chained_generator, "chained")
         pickle.dump(self.best_chained_seed, open(f"{path}/best_chained_seed.pkl", "wb"))
         self.save_chain_local()
 
     def save_chain_local(self):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         pickle.dump(self.chain_training_mid_data, open(f"{path}/chain_local.pkl", "wb"))
 
     def load(self, only_root: bool = False, only_chained: bool = False):
-        path = self.gen_t_config.output_dir
+        path = self.models_dir
         def load_generator(name):
             generator = CTGAN.load(f"{path}/{name}_ctgan_generator.pkl")
             generator._device = device
@@ -321,16 +322,16 @@ class MetadataGenerator:
         return self
 
     def load_all_root(self) -> "MetadataGenerator":
-        path = self.gen_t_config.output_dir
-        self.load(path, only_root=True)
+        path = self.models_dir
+        self.load(only_root=True)
         self.root_generator = pickle.load(open(f"{path}/root_all.pkl", "rb"))
         self.root_generator.functional_loss = partial(self.functional_loss, is_root=True)
         self.root_training_mid_data = pickle.load(open(f"{path}/root_local.pkl", 'rb'))
         return self
 
     def load_all_chained(self) -> "MetadataGenerator":
-        path = self.gen_t_config.output_dir
-        self.load(path, only_chained=True)
+        path = self.models_dir
+        self.load(only_chained=True)
         self.chained_generator = pickle.load(open(f"{path}/chained_all.pkl", "rb"))
         self.chained_generator.functional_loss = partial(self.functional_loss, is_root=False)
         self.chain_training_mid_data = pickle.load(open(f"{path}/chain_local.pkl", 'rb'))
@@ -563,7 +564,7 @@ def train_and_save_root(gen_t_config: GenTConfig, path: Union[str, Path], is_rol
     """
     gen = MetadataGenerator.get(gen_t_config, is_roll=is_roll)
     gen.train_root()
-    gen.save_root(path=str(path))
+    gen.save_root()
     print("Done train_and_save_root fidelity:", gen.best_fidelity)
 
 
@@ -572,9 +573,9 @@ def continue_train_and_save_root(gen_t_config: GenTConfig, path: Union[str, Path
     This function is here to support multiprocessing
     """
     gen = MetadataGenerator.get(gen_t_config, is_roll=True)
-    gen.load_all_root(path=str(from_path))
+    gen.load_all_root()
     gen.train_root()
-    gen.save_root(path=str(path))
+    gen.save_root()
     print("\nContinue root fidelity:", gen.best_fidelity, gen.best_root_seed)
 
 
@@ -583,9 +584,9 @@ def continue_train_and_save_chained(gen_t_config: GenTConfig, path: Union[str, P
     This function is here to support multiprocessing
     """
     gen = MetadataGenerator.get(gen_t_config, is_roll=True)
-    gen.load_all_chained(path=str(from_path))
+    gen.load_all_chained()
     gen.train_chained()
-    gen.save_chained(path=str(path))
+    gen.save_chained()
     print("\nContinue chained fidelity:", gen.best_fidelity, gen.best_chained_seed)
 
 
@@ -595,7 +596,7 @@ def train_and_save_chained(gen_t_config: GenTConfig, path: Union[str, Path], is_
     """
     gen = MetadataGenerator.get(gen_t_config, is_roll=is_roll)
     gen.train_chained()
-    gen.save_chained(path=str(path))
+    gen.save_chained()
     print("Done train_and_save_chained fidelity:", gen.best_fidelity)
 
 

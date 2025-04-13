@@ -1,0 +1,10 @@
+stages:
+  generate:
+    cmd: PYTHONPATH=../../src python chain_length.py --traces_dir ../../data/socialNetwork/baseline/gent
+      --models_dir ./models --results_dir ./results
+    deps:
+    - ../../data/socialNetwork/baseline/raw_jaeger
+    - chain_length.py
+    outs:
+    - ./models
+    - ./results
