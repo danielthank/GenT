@@ -1,0 +1,4 @@
+[core]
+    remote = gent
+['remote "gent"']
+    url = s3://gent-danny
