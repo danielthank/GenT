@@ -4,11 +4,11 @@ stages:
     cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent
       --models_dir ./models --results_dir ./results --test start_time
     deps:
-    - path: ../../data/socialNetwork/baseline/gent
+    - path: ../../data/socialNetwork/
       hash: md5
-      md5: 9804406e6b6d9c13f561308690ca6253.dir
-      size: 28214861
-      nfiles: 2
+      md5: 2f0cde8d6c9fdfc46f9f880539552d09.dir
+      size: 87767121
+      nfiles: 3
     - path: debug.py
       hash: md5
       md5: a5f528ce427b1e793e0ff9d462a84f75
@@ -16,37 +16,37 @@ stages:
     outs:
     - path: models/start_time
       hash: md5
-      md5: 4ebde732842101f92b1ddf4ff5e286ef.dir
+      md5: d037bc74e5f0736a4d1bdca616028338.dir
       size: 4373658
       nfiles: 8
     - path: results/timestamps_by_graph.pkl
       hash: md5
-      md5: 116482f39c4fbfe7be27f629cf6935da
+      md5: c7688731d9702e0b5c4a76dcaf1867cc
       size: 85321
   metadata:
     cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent
       --models_dir ./models --results_dir ./results --test metadata
     deps:
-    - path: ../../data/socialNetwork/baseline/gent
+    - path: ../../data/socialNetwork/
       hash: md5
-      md5: 9804406e6b6d9c13f561308690ca6253.dir
-      size: 28214861
-      nfiles: 2
+      md5: 2f0cde8d6c9fdfc46f9f880539552d09.dir
+      size: 87767121
+      nfiles: 3
     - path: debug.py
       hash: md5
       md5: a5f528ce427b1e793e0ff9d462a84f75
       size: 2647
     - path: results/timestamps_by_graph.pkl
       hash: md5
-      md5: 116482f39c4fbfe7be27f629cf6935da
+      md5: c7688731d9702e0b5c4a76dcaf1867cc
       size: 85321
     outs:
     - path: models/metadata
       hash: md5
-      md5: 97bf2e011de1c6233cabc676b5b72249.dir
-      size: 48358847
+      md5: 89a668d1ce172f135911d55fed37097b.dir
+      size: 47554811
       nfiles: 12
     - path: results/generated.json
       hash: md5
-      md5: 44847b090201ed88633133512c890078
-      size: 25075162
+      md5: d4404e392b25cf77acf006a3e766b44b
+      size: 25053392

@@ -4,11 +4,11 @@ stages:
     cmd: PYTHONPATH=../../src python chain_length.py --traces_dir ../../data/socialNetwork/baseline/gent
       --models_dir ./models --results_dir ./results
     deps:
-    - path: ../../data/socialNetwork/baseline/raw_jaeger
+    - path: ../../data/socialNetwork/
       hash: md5
-      md5: cf1c4433c86dfbaf2e1adbe55efb352b.dir
-      size: 59736310
-      nfiles: 1
+      md5: 2f0cde8d6c9fdfc46f9f880539552d09.dir
+      size: 87767121
+      nfiles: 3
     - path: chain_length.py
       hash: md5
       md5: 356b6d8755389ce91aed0f73b70a1b87
@@ -16,11 +16,51 @@ stages:
     outs:
     - path: ./models
       hash: md5
-      md5: 85a39b45cada397ab3ba6326e13d25b2.dir
-      size: 150503465
+      md5: 869b30afbf8fd03bf4861ffc7bd897f5.dir
+      size: 149189245
       nfiles: 80
     - path: ./results
       hash: md5
-      md5: aef8030e8e5113f5de5f6b9854d637d0.dir
-      size: 100279607
+      md5: f7425faf0bac3bd95cd54cb30ea6dc0e.dir
+      size: 100247319
       nfiles: 5
+  prepare_baseline_sql:
+    cmd: PYTHONPATH=../../src python evaluate.py prepare --db_output ./baseline.db
+      --traces_dir ../../data/socialNetwork/baseline/gent
+    deps:
+    - path: ../../data/socialNetwork/
+      hash: md5
+      md5: 2f0cde8d6c9fdfc46f9f880539552d09.dir
+      size: 87767121
+      nfiles: 3
+    - path: evaluate.py
+      hash: md5
+      md5: 41f7080a0f68ed9d0cd09e067a059225
+      size: 7530
+    outs:
+    - path: ./baseline.db
+      hash: md5
+      md5: 722dbd9511eac425cd859edef0dd71a6
+      size: 5586944
+  evaluate_gent:
+    cmd: PYTHONPATH=../../src python evaluate.py evaluate --db_input ./baseline.db
+      --db_output ./baseline_and_gent.db --results_dir ./results
+    deps:
+    - path: ./baseline.db
+      hash: md5
+      md5: 722dbd9511eac425cd859edef0dd71a6
+      size: 5586944
+    - path: ./results
+      hash: md5
+      md5: f7425faf0bac3bd95cd54cb30ea6dc0e.dir
+      size: 100247319
+      nfiles: 5
+    - path: evaluate.py
+      hash: md5
+      md5: 41f7080a0f68ed9d0cd09e067a059225
+      size: 7530
+    outs:
+    - path: ./baseline_and_gent.db
+      hash: md5
+      md5: c838281eaa1435a4ec5e66d6ad8a3e39
+      size: 33992704
