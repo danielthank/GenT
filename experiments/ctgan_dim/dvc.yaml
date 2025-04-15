@@ -1,0 +1,28 @@
+stages:
+  generate:
+    cmd: PYTHONPATH=../../src python ctgan_dim.py --traces_dir ../../data/socialNetwork/baseline/gent
+      --models_dir ./models --results_dir ./results
+    deps:
+    - ctgan_dim.py
+    - ../../data/socialNetwork/
+    outs:
+    - ./models
+    - ./results
+  prepare_baseline_sql:
+    cmd: PYTHONPATH=../../src python prepare.py --db_output ./baseline.db --traces_dir
+      ../../data/socialNetwork/baseline/gent
+    deps:
+    - ./prepare.py
+    - ../../data/socialNetwork/
+    outs:
+    - ./baseline.db
+  evaluate_gent:
+    cmd: PYTHONPATH=../../src python evaluate.py --db_input ./baseline.db --db_output
+      ./baseline_and_gent.db --results_dir ./results --evaluation_results ./evaluation_results.json
+    deps:
+    - ./evaluate.py
+    - ./baseline.db
+    - ./results
+    outs:
+    - ./baseline_and_gent.db
+    - ./evaluation_results.json

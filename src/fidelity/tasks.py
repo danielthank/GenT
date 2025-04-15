@@ -52,7 +52,7 @@ Where
         **({
                s: [pandas.read_sql_query(build_query(sampling=s, table_name='Spans'), conn) for _ in range(5)]
                for s in ALL_SAMPLINGS
-           } if not with_sampling else {})
+           } if with_sampling else {})
     }
     results = {}
 

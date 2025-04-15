@@ -1,7 +1,7 @@
 schema: '2.0'
 stages:
   generate:
-    cmd: PYTHONPATH=../../src python chain_length.py --traces_dir ../../data/socialNetwork/baseline/gent
+    cmd: PYTHONPATH=../../src python ctgan_dim.py --traces_dir ../../data/socialNetwork/baseline/gent
       --models_dir ./models --results_dir ./results
     deps:
     - path: ../../data/socialNetwork/
@@ -9,20 +9,20 @@ stages:
       md5: 2f0cde8d6c9fdfc46f9f880539552d09.dir
       size: 87767121
       nfiles: 3
-    - path: chain_length.py
+    - path: ctgan_dim.py
       hash: md5
-      md5: 356b6d8755389ce91aed0f73b70a1b87
-      size: 2103
+      md5: d3a3427380987afd8e18d95e8889288c
+      size: 2158
     outs:
     - path: ./models
       hash: md5
-      md5: 869b30afbf8fd03bf4861ffc7bd897f5.dir
-      size: 149189245
+      md5: a2685cedbee7348e1604c0a1e6f243dc.dir
+      size: 151354818
       nfiles: 80
     - path: ./results
       hash: md5
-      md5: f7425faf0bac3bd95cd54cb30ea6dc0e.dir
-      size: 100247319
+      md5: d236f2ebb9c173120e98433077910ab7.dir
+      size: 100259301
       nfiles: 5
   prepare_baseline_sql:
     cmd: PYTHONPATH=../../src python prepare.py --db_output ./baseline.db --traces_dir
@@ -52,19 +52,19 @@ stages:
       size: 5586944
     - path: ./evaluate.py
       hash: md5
-      md5: 1b707d8b546fc6e3ace6a83e0c2b7d68
-      size: 4584
+      md5: 937dfe60bc1a4ab907d93232644f8737
+      size: 4582
     - path: ./results
       hash: md5
-      md5: f7425faf0bac3bd95cd54cb30ea6dc0e.dir
-      size: 100247319
+      md5: d236f2ebb9c173120e98433077910ab7.dir
+      size: 100259301
       nfiles: 5
     outs:
     - path: ./baseline_and_gent.db
       hash: md5
-      md5: c838281eaa1435a4ec5e66d6ad8a3e39
-      size: 33992704
+      md5: ab44456921516aeb836c0169eddea001
+      size: 33988608
     - path: ./evaluation_results.json
       hash: md5
-      md5: fc717b34d2740621b567c304b51d05b8
-      size: 3629
+      md5: 1ddb6b659aa13d47717c0c9003f2271b
+      size: 3607

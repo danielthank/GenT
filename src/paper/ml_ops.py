@@ -42,19 +42,6 @@ def measure_multiple_configurations(drivers: Iterable[BaseDriver], max_workers=1
         result = [f.result() for f in futures]
     print(result)
 
-
-def iterations_exp(traces_dir: str) -> None:
-    print("GenT iterations (time-based)")
-    configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=tx_count, iterations=iterations, traces_dir=traces_dir)
-        for tx_count in [1_000, 2_000, 5_000, 10_000]
-        for iterations in [1, 2, 3, 4, 5, 6, 7, 10, 20, 30]
-    ]
-    for config in configs:
-        print(f"#### iterations {config.iterations} tx_count {config.tx_end} #####")
-        measure_configuration(GenTDriver(config), skip_if_exists=True)
-
-
 def batch_size(traces_dir: str) -> None:
     print("GenT changing CTGAN's generator dimension")
     measure_multiple_configurations(map(GenTDriver, [
@@ -76,30 +63,13 @@ def simple_ablations(traces_dir: str) -> None:
         measure_configuration(GenTDriver(config), skip_if_exists=False)
 
 
-def ctgan_dim(traces_dir: str) -> None:
-    print("GenT ctgan_dim")
-    configs = [
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(128,), traces_dir=traces_dir),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(128, 128), traces_dir=traces_dir),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(256, 256), traces_dir=traces_dir),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, generator_dim=(256,), traces_dir=traces_dir),
-    ]
-    for config in configs:
-        print("#### ctgan_dim #####", config.generator_dim)
-        measure_configuration(GenTDriver(config), skip_if_exists=True)
-
-
 def main():
     parser = argparse.ArgumentParser(description='Run GenT experiments')
     parser.add_argument('experiment', type=str, help='Experiment to run (ctgan_dim, iterations, simple_ablations, batch_size)')
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     args = parser.parse_args()
     
-    if args.experiment == "ctgan_dim":
-        ctgan_dim(args.traces_dir)
-    elif args.experiment == "iterations":
-        iterations_exp(args.traces_dir)
-    elif args.experiment == "simple_ablations":
+    if args.experiment == "simple_ablations":
         simple_ablations(args.traces_dir)
     elif args.experiment == "batch_size":
         batch_size(args.traces_dir)

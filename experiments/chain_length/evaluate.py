@@ -87,8 +87,8 @@ def evaluate_chain_length(conn: sqlite3.Connection, results_dir: str):
         )
     results = {}
     # monitor_errors(syn_tables, with_sampling=False)
-    results["trigger_correlation"] = trigger_correlation(conn, syn_tables, with_sampling=False)
-    results["relative_duration"] = relative_duration(conn, syn_tables, groups=['s1', 's2', 'timeBucket'], with_sampling=True)
+    results["trigger_correlation"] = trigger_correlation(conn, syn_tables)
+    results["relative_duration"] = relative_duration(conn, syn_tables, groups=['s1', 's2', 'timeBucket'])
     #attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
     return results
 

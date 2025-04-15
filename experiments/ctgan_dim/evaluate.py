@@ -76,17 +76,16 @@ def fill_data(conn: sqlite3.Connection, traces_dir: str, table_name: str, start_
             ))
     conn.commit()
 
-def evaluate_tx_iteration(conn: sqlite3.Connection, results_dir: str):
-    print("iteration_tx_count_experiment")
+def evaluate_ctgan_dim(conn: sqlite3.Connection, results_dir: str):
     syn_tables = []
-    for tx_count in [1_000, 2_000, 5_000, 10_000]:
-        for iterations in [1, 2, 3, 4, 5, 6, 7, 10, 20, 30]:
-            syn_tables.append(f"SynSpansIterations{iterations}TxCount{tx_count}")
-            fill_data(
-                conn,
-                f"{os.path.join(results_dir, f"{tx_count}_{iterations}", "normalized_data")}",
-                syn_tables[-1]
-            )
+    for dim in [(128,), (128,128), (256,), (256,256)]:
+        dim = "_".join(map(str, dim))
+        syn_tables.append(f"SynSpansCTGANDim{dim}")
+        fill_data(
+            conn,
+            f"{os.path.join(results_dir, dim, "normalized_data")}",
+            syn_tables[-1]
+        )
     results = {}
     # monitor_errors(syn_tables)
     results["trigger_correlation"] = trigger_correlation(conn, syn_tables)
@@ -95,7 +94,7 @@ def evaluate_tx_iteration(conn: sqlite3.Connection, results_dir: str):
     return results
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate TX Iteration Experiment")
+    parser = argparse.ArgumentParser(description="Evaluate ctgan dim experiment")
     parser.add_argument('--results_dir', type=str, required=True, help='Directory to store generated gent traces')
     parser.add_argument('--db_input', type=str, default='baseline.db', help='Input database file')
     parser.add_argument('--db_output', type=str, default='baseline_and_gent.db', help='Output database file')
@@ -104,5 +103,5 @@ if __name__ == "__main__":
 
     # copy the baseline database to the output database
     shutil.copy(args.db_input, args.db_output)
-    results = evaluate_tx_iteration(sqlite3.connect(args.db_output), args.results_dir)
+    results = evaluate_ctgan_dim(sqlite3.connect(args.db_output), args.results_dir)
     json.dump(results, open(args.evaluation_results, 'w'), indent=4)
