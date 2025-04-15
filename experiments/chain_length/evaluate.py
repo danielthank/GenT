@@ -2,11 +2,12 @@ import os
 import shutil
 import argparse
 import sqlite3
+import json
 from drivers.gent.data import get_all_txs
 from ml.app_normalizer import extract_metadata
 
 from constants import SAMPLE_SIZES
-from tasks import trigger_correlation
+from tasks import trigger_correlation, relative_duration
 
 ALL_TRACES = 9342
 
@@ -139,8 +140,6 @@ def fill_data(conn: sqlite3.Connection, traces_dir: str, table_name: str, start_
     conn.commit()
 
 def evaluate_chain_length(conn: sqlite3.Connection, results_dir: str):
-    print("chain_length_experiment")
-
     syn_tables = []
     for chain_length in [2, 3, 4, 5]:
         syn_tables.append(f"SynSpansChainLength{chain_length}")
@@ -149,10 +148,12 @@ def evaluate_chain_length(conn: sqlite3.Connection, results_dir: str):
             f"{os.path.join(results_dir, str(chain_length), "normalized_data")}",
             syn_tables[-1]
         )
+    results = {}
     # monitor_errors(syn_tables, with_sampling=False)
-    trigger_correlation(conn, syn_tables, with_sampling=False)
-    #bottlenecks_by_time_range(syn_tables, 60, groups=['s1', 'timeBucket'], with_sampling=False)
+    results["trigger_correlation"] = trigger_correlation(conn, syn_tables, with_sampling=False)
+    results["relative_duration"] = relative_duration(conn, syn_tables, groups=['s1', 's2', 'timeBucket'], with_sampling=True)
     #attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
+    return results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate Chain Length Experiment")
@@ -165,6 +166,7 @@ if __name__ == "__main__":
         parser.add_argument('--results_dir', type=str, required=True, help='Directory to store generated gent traces')
         parser.add_argument('--db_input', type=str, default='baseline.db', help='Input database file')
         parser.add_argument('--db_output', type=str, default='baseline_and_gent.db', help='Output database file')
+        parser.add_argument('--evaluation_results', type=str, default='evaluation_results.json', help='Output file for evaluation results') 
     args = parser.parse_args()
 
     if args.action == 'prepare':
@@ -172,4 +174,5 @@ if __name__ == "__main__":
     elif args.action == 'evaluate':
         # copy the baseline database to the output database
         shutil.copy(args.db_input, args.db_output)
-        evaluate_chain_length(sqlite3.connect(args.db_output), args.results_dir)
+        results = evaluate_chain_length(sqlite3.connect(args.db_output), args.results_dir)
+        json.dump(results, open(args.evaluation_results, 'w'), indent=4)

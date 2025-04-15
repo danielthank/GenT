@@ -35,8 +35,8 @@ stages:
       nfiles: 3
     - path: evaluate.py
       hash: md5
-      md5: 41f7080a0f68ed9d0cd09e067a059225
-      size: 7530
+      md5: 500bab4a0ab1f61eff338742d60fae7d
+      size: 7405
     outs:
     - path: ./baseline.db
       hash: md5
@@ -44,7 +44,8 @@ stages:
       size: 5586944
   evaluate_gent:
     cmd: PYTHONPATH=../../src python evaluate.py evaluate --db_input ./baseline.db
-      --db_output ./baseline_and_gent.db --results_dir ./results
+      --db_output ./baseline_and_gent.db --results_dir ./results --evaluation_results
+      ./evaluation_results.json
     deps:
     - path: ./baseline.db
       hash: md5
@@ -57,10 +58,14 @@ stages:
       nfiles: 5
     - path: evaluate.py
       hash: md5
-      md5: 41f7080a0f68ed9d0cd09e067a059225
-      size: 7530
+      md5: 500bab4a0ab1f61eff338742d60fae7d
+      size: 7405
     outs:
     - path: ./baseline_and_gent.db
       hash: md5
       md5: c838281eaa1435a4ec5e66d6ad8a3e39
       size: 33992704
+    - path: ./evaluation_results.json
+      hash: md5
+      md5: 79a149479702c9697be7f31ace9e969a
+      size: 3632

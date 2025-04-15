@@ -49,6 +49,7 @@ def _handle_jaeger_trace(jaeger_trace: dict) -> dict:
         return jaeger_trace["processes"][s["processID"]]["serviceName"]
     span_to_service_name = {s["spanID"]: (get_service_name(s), s["startTime"]) for s in jaeger_trace["spans"]}
     span_id_to_ts_name = {}
+    span_id_to_component_id = {}
     components = []
     for span in jaeger_trace["spans"]:
         service_name, start_time = span_to_service_name[span["spanID"]]
@@ -57,6 +58,7 @@ def _handle_jaeger_trace(jaeger_trace: dict) -> dict:
         name = f'{service_name}*{dup_names.index(start_time)}'
         span_id_to_ts_name[span["spanID"]] = name
     for span in jaeger_trace["spans"]:
+        span_id_to_component_id[span["spanID"]] = len(components)
         components.append(Component(
             component_id=span_id_to_ts_name[span["spanID"]],
             start_time=span["startTime"],
@@ -65,13 +67,20 @@ def _handle_jaeger_trace(jaeger_trace: dict) -> dict:
                 ((tag["key"] == "error" and tag["value"] is True)
                 or tag["key"] == "http.status_code" and tag["value"] > 300)
                 for tag in span["tags"]),
-            # TODO: change children_ids to parent_ids
-            children_ids=[span_id_to_ts_name.get(ref["spanID"]) for ref in span["references"] if ref["refType"] == "CHILD_OF"],
+            children_ids=[],
             group="",
             metadata={t["key"]: t["value"] for t in span["tags"]} | {f"process_{t['key']}": t["value"] for t in jaeger_trace['processes'][span["processID"]]['tags']},
             component_type="jaeger",
             duration=span["duration"]
         ))
+    for span in jaeger_trace["spans"]:
+        for ref in span["references"]:
+            if ref["refType"] == "CHILD_OF":
+                parent_id = ref["spanID"]
+                child_id = span["spanID"]
+                components[span_id_to_component_id[parent_id]].children_ids.append(span_id_to_ts_name.get(child_id))
+                # at most one parent
+                break
     return prepare_tx_structure(transaction_id=jaeger_trace["traceID"], components=components)
 
 

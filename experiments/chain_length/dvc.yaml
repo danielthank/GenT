@@ -18,10 +18,11 @@ stages:
     - ./baseline.db
   evaluate_gent:
     cmd: PYTHONPATH=../../src python evaluate.py evaluate --db_input ./baseline.db --db_output
-      ./baseline_and_gent.db --results_dir ./results
+      ./baseline_and_gent.db --results_dir ./results --evaluation_results ./evaluation_results.json
     deps:
     - ./baseline.db
     - ./results
     - evaluate.py
     outs:
     - ./baseline_and_gent.db
+    - ./evaluation_results.json

@@ -382,6 +382,7 @@ def normalize_data(input_dir: str, config: GenTConfig) -> None:
             writer.writerow(get_csv_headers(config))
             with open(os.path.join(input_dir, file), "r") as input_file:
                 for json_line in input_file.readlines():
+                    json_line = json_line.strip()[:-1]
                     tx = json.loads(json_line)
                     for row in extract_rows_from_transaction(tx, config=config):
                         writer.writerow(row)
