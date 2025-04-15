@@ -4,7 +4,7 @@ import sqlite3
 import numpy as np
 import scipy
 from typing import List, Tuple
-from constants import SECOND, ALL_SAMPLINGS
+from fidelity.constants import SECOND, ALL_SAMPLINGS
 
 def get_table_prefix(table_name) -> str:
     table_prefix = ""

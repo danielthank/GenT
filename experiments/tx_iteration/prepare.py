@@ -1,13 +1,71 @@
-import os
-import shutil
 import argparse
 import sqlite3
-import json
 from drivers.gent.data import get_all_txs
 from ml.app_normalizer import extract_metadata
-from fidelity.tasks import trigger_correlation, relative_duration
+from fidelity.constants import SAMPLE_SIZES
 
 ALL_TRACES = 9342
+
+def init(conn: sqlite3.Connection, traces_dir: str):
+    create_spans_table(conn, "Spans")
+    create_spans_table(conn, "SynSpans")
+    create_sampling_views(conn)
+    fill_data(conn, traces_dir, "Spans")
+
+def create_sampling_views(conn: sqlite3.Connection, table_prefix: str = ""):
+    cursor = conn.cursor()
+    
+    # Drop and recreate the head-based sampling views
+    for sampling in SAMPLE_SIZES:
+        # Drop the view if it exists
+        cursor.execute(f'DROP VIEW IF EXISTS HeadBased{table_prefix}Traces{sampling};')
+        
+        # Create the view
+        cursor.execute(f'''
+        CREATE VIEW HeadBased{table_prefix}Traces{sampling} AS
+            SELECT DISTINCT traceId
+            FROM {table_prefix}Spans
+            GROUP BY traceId
+            ORDER BY RANDOM()
+            LIMIT (SELECT count(DISTINCT traceId) FROM {table_prefix}Spans) / {sampling};
+        ''')
+    
+    # Drop and recreate other sampling views
+    cursor.execute(f'DROP VIEW IF EXISTS ErrorBased{table_prefix}Traces;')
+    cursor.execute(f'''
+    CREATE VIEW ErrorBased{table_prefix}Traces AS
+        SELECT DISTINCT traceId
+        FROM {table_prefix}Spans
+        WHERE status = 1;
+    ''')
+    
+    cursor.execute(f'DROP VIEW IF EXISTS DurationBased{table_prefix}Traces;')
+    cursor.execute(f'''
+    CREATE VIEW DurationBased{table_prefix}Traces AS
+        SELECT DISTINCT traceId
+        FROM {table_prefix}Spans
+        GROUP BY traceId
+        HAVING (max(endTime) - min(startTime)) / 1000 > 190;
+    ''')
+    
+    cursor.execute(f'DROP VIEW IF EXISTS NoSampling{table_prefix}Traces;')
+    cursor.execute(f'''
+    CREATE VIEW NoSampling{table_prefix}Traces AS
+        SELECT DISTINCT traceId
+        FROM {table_prefix}Spans;
+    ''')
+    
+    for i in [1, 2, 5, 10, 15]:
+        cursor.execute(f'DROP VIEW IF EXISTS First{i}K{table_prefix}Traces;')
+        cursor.execute(f'''
+        CREATE VIEW First{i}K{table_prefix}Traces AS
+            SELECT traceId
+            FROM {table_prefix}Spans
+            GROUP BY traceId
+            ORDER BY min(startTime) ASC
+            LIMIT {i}000;
+        ''')
+    conn.commit()
 
 def create_spans_table(conn: sqlite3.Connection, table_name: str):
     cursor = conn.cursor()
@@ -76,31 +134,10 @@ def fill_data(conn: sqlite3.Connection, traces_dir: str, table_name: str, start_
             ))
     conn.commit()
 
-def evaluate_chain_length(conn: sqlite3.Connection, results_dir: str):
-    syn_tables = []
-    for chain_length in [2, 3, 4, 5]:
-        syn_tables.append(f"SynSpansChainLength{chain_length}")
-        fill_data(
-            conn,
-            f"{os.path.join(results_dir, str(chain_length), "normalized_data")}",
-            syn_tables[-1]
-        )
-    results = {}
-    # monitor_errors(syn_tables, with_sampling=False)
-    results["trigger_correlation"] = trigger_correlation(conn, syn_tables, with_sampling=False)
-    results["relative_duration"] = relative_duration(conn, syn_tables, groups=['s1', 's2', 'timeBucket'], with_sampling=True)
-    #attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
-    return results
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate Chain Length Experiment")
-    parser.add_argument('--results_dir', type=str, required=True, help='Directory to store generated gent traces')
-    parser.add_argument('--db_input', type=str, default='baseline.db', help='Input database file')
-    parser.add_argument('--db_output', type=str, default='baseline_and_gent.db', help='Output database file')
-    parser.add_argument('--evaluation_results', type=str, default='evaluation_results.json', help='Output file for evaluation results') 
+    parser = argparse.ArgumentParser(description="Prepare Chain Length Experiment")
+    parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
+    parser.add_argument('--db_output', type=str, default='baseline.db', help='Output database file')
     args = parser.parse_args()
 
-    # copy the baseline database to the output database
-    shutil.copy(args.db_input, args.db_output)
-    results = evaluate_chain_length(sqlite3.connect(args.db_output), args.results_dir)
-    json.dump(results, open(args.evaluation_results, 'w'), indent=4)
+    init(sqlite3.connect(args.db_output), args.traces_dir)

@@ -24,6 +24,7 @@ from pandora_trace.query_db import BENCHMARK_QUERIES, run_templates
 
 FEATURES = ["str_feature_1", "str_feature_2", "int_feature_1", "int_feature_2", "int_feature_3"]
 HOUR = 60 * 60 * 1000
+SECOND = 1000 * 1000
 
 SAMPLE_SIZES = [5, 10, 15, 20, 30, 40, 50, 75, 100, 150]
 
@@ -314,59 +315,6 @@ def monitor_errors(syn_tables: List[str], with_sampling: bool = True):
     print("monitor_errors", results)
 
 
-def bottlenecks_by_time_range(syn_tables: List[str], hours_count: int, groups: List[str], with_sampling: bool = True):
-    def build_query(sampling: str, table_name: str) -> str:
-        return f'''
-    SELECT S1.serviceName as s1, S2.serviceName as s2, ROUND(S2.startTime / {HOUR * hours_count}) as timeBucket, ROUND(
-        (1.0 * S2.endTime - S2.startTime) /(S1.endTime - S1.startTime), 2
-    ) AS ratio
-    FROM {table_name} as S1, {table_name} as S2
-    Where 
-        S1.serviceName in (
-            SELECT DISTINCT serviceName
-            FROM {table_name}
-            WHERE parentId like 'top%'
-        )
-        AND S1.traceId = S2.traceId
-        AND (S2.endTime - S2.startTime) < (S1.endTime - S1.startTime)
-        AND S1.traceId in {sampling}
-    '''
-
-    no_sample = {
-        n: pandas.read_sql_query(build_query(*n), conn)
-        for n in set(sample_name_by_syn_table(s) for s in syn_tables + ALL_SAMPLINGS)
-    }
-    raw_results = {
-        **{
-            syn: pandas.read_sql_query(build_query(sampling=syn.replace("Spans", "Traces"), table_name=syn), conn)
-            for syn in syn_tables
-        },
-        **{
-            s: pandas.read_sql_query(build_query(sampling=s, table_name='Spans'), conn)
-            for s in (ALL_SAMPLINGS if with_sampling else [])
-        }
-    }
-
-    results = {}
-    distributions = {
-        s: {k: v['ratio'].tolist() for k, v in raw.groupby(groups)}
-        for s, raw in raw_results.items()
-    }
-    no_sampling_distributions = {
-        s: {k: v['ratio'].tolist() for k, v in raw.groupby(groups)}
-        for s, raw in no_sample.items()
-    }
-    for method, ratios in distributions.items():
-        raw_ratios = no_sampling_distributions[sample_name_by_syn_table(method)]
-        distances = [
-            scipy.stats.wasserstein_distance(raw_ratios, ratios[key]) if key in ratios else 1
-            for key, raw_ratios in raw_ratios.items()
-        ]
-        results[method] = numpy.average(distances), numpy.std(distances)
-    print(f"bottlenecks_by_time_range hours={hours_count} groups={groups}:", results)
-    return results
-
-
 def bottlenecks(syn_tables: List[str]):
     all_results = {}
     for hours_count in [4, 12, 24]:
@@ -458,53 +406,6 @@ def attributes(syn_tables: List[str], attr_name: str, with_sampling: bool = True
     print("attributes", results)
     return results
 
-
-def trigger_correlation(syn_tables: List[str], with_sampling: bool = True, hours: int = 1):
-    def build_query(sampling: str, table_name: str) -> str:
-        return f'''
-SELECT DISTINCT ROUND(S1.startTime / {hours * HOUR}) as timeBucket, S1.serviceName as S1, S2.serviceName as S2
-FROM {table_name} as S1, {table_name} as S2
-Where 
-    S1.spanId = S2.parentId
-    AND S1.traceId in {sampling}
-'''
-
-    no_sample = {
-        n: pandas.read_sql_query(build_query(*n), conn)
-        for n in set(sample_name_by_syn_table(s) for s in syn_tables + ALL_SAMPLINGS)
-    }
-    raw_triggers = {
-        **{
-            syn: [pandas.read_sql_query(build_query(sampling=syn.replace("Spans", "Traces"), table_name=syn), conn) for
-                  _ in range(5 if 'HeadBased' in syn else 1)]
-            for syn in syn_tables
-        },
-        **({
-               s: [pandas.read_sql_query(build_query(sampling=s, table_name='Spans'), conn) for _ in range(5)]
-               for s in ALL_SAMPLINGS
-           } if with_sampling else {})
-    }
-    results = {}
-
-    to_trigger_set = lambda triggers: set(
-        '#'.join(map(str, t)) for t in triggers[['timeBucket', 'S1', 'S2']].values.tolist())
-
-    all_no_sample = {n: to_trigger_set(data) for n, data in no_sample.items()}
-    for sampling_method, triggers_rep in raw_triggers.items():
-        all_triggers = all_no_sample[sample_name_by_syn_table(sampling_method)]
-        f1_rep = []
-        for triggers in triggers_rep:
-            triggers = to_trigger_set(triggers)
-            tp = len(all_triggers.intersection(triggers))
-            fp = len(triggers.difference(all_triggers))
-            fn = len(all_triggers.difference(triggers))
-            f1 = 2 * tp / (2 * tp + fp + fn) if tp + fp + fn > 0 else 0
-            f1_rep.append(f1)
-        results[sampling_method] = numpy.average(f1_rep), numpy.std(f1_rep)
-    print(f"trigger_correlation:", results)
-    return results
-
-
 def trigger_correlation_many(syn_tables: List[str], with_sampling: bool = True):
     all_results = []
     for hour in [1, 2, 3, 4, 5]:
@@ -516,53 +417,25 @@ def trigger_correlation_many(syn_tables: List[str], with_sampling: bool = True):
     print("trigger_correlation_many", final)
 
 
-def monitor_with_syn_tables():
-    syn_tables = []
-    for tx_count in [2_000, 5_000, 10_000, 15_000]:
-        for iterations in [1, 2, 3, 4, 5, 6, 7, 10, 20, 30]:
-            syn_tables.append(f"SynSpansIterations{iterations}TxCount{tx_count}")
-            # fill_data(
-            #     fr"/Users/saart/cmu/GenT/results/genT/chain_length=2.iterations={iterations}.metadata_str_size=2.metadata_int_size=3.batch_size=10.is_test=False.with_gcn=True.discriminator_dim=(128,).generator_dim=(128,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end={tx_count}/normalized_data/",
-            #     syn_tables[-1]
-            # )
-    monitor_errors(syn_tables)
-    trigger_correlation(syn_tables, with_sampling=True, hours=4)
-    bottlenecks_by_time_range(syn_tables, 4, groups=['s1', 's2', 'timeBucket'])
-    attributes(syn_tables, attr_name='str_feature_2', with_sampling=True)
-
-
-def monitor_chain_length():
-    iterations = 10
-    tx_count = ALL_TRACES
-
-    syn_tables = []
-    for chain_length in [2, 3, 4, 5]:
-        syn_tables.append(f"SynSpansChainLength{chain_length}")
-        fill_data(
-            fr"/Users/saart/cmu/GenT/results/genT/chain_length={chain_length}.iterations={iterations}.metadata_str_size=2.metadata_int_size=3.batch_size=10.is_test=False.with_gcn=True.discriminator_dim=(128,).generator_dim=(128,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end={tx_count}/normalized_data/",
-            syn_tables[-1]
-        )
-    monitor_errors(syn_tables, with_sampling=False)
-    trigger_correlation(syn_tables, with_sampling=False)
-    bottlenecks_by_time_range(syn_tables, 12, groups=['s1', 'timeBucket'], with_sampling=False)
-    attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
-
-
 def ctgan_gen_dim():
-    iterations = 10
-    tx_count = ALL_TRACES
-
+    print("dimension_experiment")
     syn_tables = []
-    for gen_dim in [(128,), (128, 128), (256, 256), (256,)]:
+    folder_names = {
+        (128,): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(128,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
+        (128, 128): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(128, 128).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
+        (256, 256): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(256, 256).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
+        (256,): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(256,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
+    }
+    for gen_dim, folder_name in folder_names.items():
         dim = '_'.join(map(str, gen_dim))
         syn_tables.append(f"SynSpansCTGANDim{dim}")
         fill_data(
-            fr"/Users/saart/cmu/GenT/results/genT/chain_length=2.iterations={iterations}.metadata_str_size=2.metadata_int_size=3.batch_size=10.is_test=False.with_gcn=True.discriminator_dim=(128,).generator_dim={gen_dim}.start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end={tx_count}/normalized_data/",
+            fr"{folder_name}/normalized_data/",
             syn_tables[-1]
         )
+    # monitor_errors(syn_tables, with_sampling=False)
     trigger_correlation(syn_tables, with_sampling=False)
-    monitor_errors(syn_tables, with_sampling=False)
-    bottlenecks_by_time_range(syn_tables, 12, groups=['s1', 'timeBucket'], with_sampling=False)
+    bottlenecks_by_time_range(syn_tables, 60, groups=['s1', 'timeBucket'], with_sampling=False)
     attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
 
 
@@ -578,7 +451,7 @@ def simple_ablations():
         fill_data(path, syn_tables[-1])
     trigger_correlation(syn_tables, with_sampling=False)
     monitor_errors(syn_tables, with_sampling=False)
-    bottlenecks_by_time_range(syn_tables, 12, groups=['s1', 'timeBucket'], with_sampling=False)
+    bottlenecks_by_time_range(syn_tables, 2, groups=['s1', 'timeBucket'], with_sampling=False)
     attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
 
 
@@ -846,16 +719,16 @@ def selected_specifics():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process trace data and run analysis')
-    parser.add_argument('traces_dir', type=str, required=True, help='Directory containing trace data')
+    parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     args = parser.parse_args()
     
     init(args.traces_dir)
-    monitor_chain_length()
+    #monitor_chain_length()
+    #ctgan_gen_dim()
+    #monitor_with_syn_tables()
     # bottlenecks(["SynSpansChainLength2"])
-    # monitor_with_syn_tables()
     # rolling_experiment(is_rolling=True)
     # simple_ablations()
-    # ctgan_gen_dim()
     # fill_data(
     #     fr"/Users/saart/cmu/GenT/results/genT/chain_length=2.iterations=10.metadata_str_size=2.metadata_int_size=3.batch_size=10.is_test=False.with_gcn=True.discriminator_dim=(128,).generator_dim=(128,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end={ALL_TRACES-1}/normalized_data/",
     #     "SynSpansChainLength2"
@@ -870,4 +743,4 @@ if __name__ == '__main__':
     # selected_specifics()
     # benchmark_by_query(iterations=1)
     # sampling_of_benchmark()
-    test_benchmark_sampling()
+    # test_benchmark_sampling()

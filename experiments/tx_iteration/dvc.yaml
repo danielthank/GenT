@@ -1,10 +1,10 @@
 stages:
   generate:
-    cmd: PYTHONPATH=../../src python chain_length.py --traces_dir ../../data/socialNetwork/baseline/gent
+    cmd: PYTHONPATH=../../src python tx_iteration.py --traces_dir ../../data/socialNetwork/baseline/gent
       --models_dir ./models --results_dir ./results
     deps:
+    - tx_iteration.py
     - ../../data/socialNetwork/
-    - chain_length.py
     outs:
     - ./models
     - ./results

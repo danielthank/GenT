@@ -76,24 +76,26 @@ def fill_data(conn: sqlite3.Connection, traces_dir: str, table_name: str, start_
             ))
     conn.commit()
 
-def evaluate_chain_length(conn: sqlite3.Connection, results_dir: str):
+def evaluate_tx_iteration(conn: sqlite3.Connection, results_dir: str):
+    print("iteration_tx_count_experiment")
     syn_tables = []
-    for chain_length in [2, 3, 4, 5]:
-        syn_tables.append(f"SynSpansChainLength{chain_length}")
-        fill_data(
-            conn,
-            f"{os.path.join(results_dir, str(chain_length), "normalized_data")}",
-            syn_tables[-1]
-        )
+    for tx_count in [1_000, 2_000, 5_000, 10_000]:
+        for iterations in [1, 2, 3, 4, 5, 6, 7, 10, 20, 30]:
+            syn_tables.append(f"SynSpansIterations{iterations}TxCount{tx_count}")
+            fill_data(
+                conn,
+                f"{os.path.join(results_dir, f"{tx_count}_{iterations}", "normalized_data")}",
+                syn_tables[-1]
+            )
     results = {}
-    # monitor_errors(syn_tables, with_sampling=False)
-    results["trigger_correlation"] = trigger_correlation(conn, syn_tables, with_sampling=False)
+    # monitor_errors(syn_tables)
+    results["trigger_correlation"] = trigger_correlation(conn, syn_tables, with_sampling=True)
     results["relative_duration"] = relative_duration(conn, syn_tables, groups=['s1', 's2', 'timeBucket'], with_sampling=True)
-    #attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
+    #attributes(syn_tables, attr_name='str_feature_2', with_sampling=True)
     return results
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate Chain Length Experiment")
+    parser = argparse.ArgumentParser(description="Evaluate TX Iteration Experiment")
     parser.add_argument('--results_dir', type=str, required=True, help='Directory to store generated gent traces')
     parser.add_argument('--db_input', type=str, default='baseline.db', help='Input database file')
     parser.add_argument('--db_output', type=str, default='baseline_and_gent.db', help='Output database file')
@@ -102,5 +104,5 @@ if __name__ == "__main__":
 
     # copy the baseline database to the output database
     shutil.copy(args.db_input, args.db_output)
-    results = evaluate_chain_length(sqlite3.connect(args.db_output), args.results_dir)
+    results = evaluate_tx_iteration(sqlite3.connect(args.db_output), args.results_dir)
     json.dump(results, open(args.evaluation_results, 'w'), indent=4)
