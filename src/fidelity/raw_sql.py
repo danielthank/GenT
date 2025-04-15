@@ -19,7 +19,7 @@ import pandas
 from matplotlib import pyplot
 from ml.app_normalizer import extract_metadata
 from paper.adaption_experiment import NON_ROLLING_PATH, ROLLING_PATH
-from drivers.gent.data import get_all_txs, ALL_TRACES, ROLLING_EXPERIMENT_CONFIGS, ROLLING_EXPERIMENT_NAMES
+from drivers.gent.data import get_all_txs, ROLLING_EXPERIMENT_CONFIGS, ROLLING_EXPERIMENT_NAMES
 from pandora_trace.query_db import BENCHMARK_QUERIES, run_templates
 
 FEATURES = ["str_feature_1", "str_feature_2", "int_feature_1", "int_feature_2", "int_feature_3"]
@@ -415,28 +415,6 @@ def trigger_correlation_many(syn_tables: List[str], with_sampling: bool = True):
         for method in all_results[0]
     }
     print("trigger_correlation_many", final)
-
-
-def ctgan_gen_dim():
-    print("dimension_experiment")
-    syn_tables = []
-    folder_names = {
-        (128,): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(128,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
-        (128, 128): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(128, 128).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
-        (256, 256): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(256, 256).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
-        (256,): r"/home/danny/Repos/Research/GenTAll/traces/socialNetwork/baseline/gent/results/genT/chain_length=2.iterations=10.traces_dir=gent.with_gcn=True.discriminator_dim=(128,).generator_dim=(256,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=13911",
-    }
-    for gen_dim, folder_name in folder_names.items():
-        dim = '_'.join(map(str, gen_dim))
-        syn_tables.append(f"SynSpansCTGANDim{dim}")
-        fill_data(
-            fr"{folder_name}/normalized_data/",
-            syn_tables[-1]
-        )
-    # monitor_errors(syn_tables, with_sampling=False)
-    trigger_correlation(syn_tables, with_sampling=False)
-    bottlenecks_by_time_range(syn_tables, 60, groups=['s1', 'timeBucket'], with_sampling=False)
-    attributes(syn_tables, attr_name='str_feature_2', with_sampling=False)
 
 
 def simple_ablations():

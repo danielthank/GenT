@@ -13,7 +13,7 @@ from matplotlib import pyplot
 from ml.app_normalizer import extract_rows_from_transaction, get_csv_headers, set_gent_name
 from ml.app_utils import GenTConfig, store_global_metadata
 
-ALL_TRACES = 23010
+ALL_TRACES = 13911
 GRAPH_COUNTS: List[Tuple[str, int]] = [
     ["[('fastapi-edge', 'api.twilio.com'), ('fastapi-edge', 'getSharedUnicorn'), ('getSharedUnicorn', 'sharedUnicorns'), ('getSharedUnicorn', 'wildrydes-prod-unicornDispatched'), ('wildrydes-prod-unicornDispatched', 'wildrydes-prod-recordRide'), ('wildrydes-prod-unicornDispatched', 'wildrydes-prod-uploadReceipt')]", 737],
     ["[('/prod/ride', 'wildrydes-prod-requestUnicorn'), ('socialprod', 'wildrydes-prod-postToSocial'), ('wildrydes-prod-PaymentRecords', 'wildrydes-prod-sendReceipt'), ('wildrydes-prod-Rides-144HA57HKYVE6', 'wildrydes-prod-sumRides'), ('wildrydes-prod-RyderQueue-rvOTc88cl7pn', 'wildrydes-prod-postToAnalytics'), ('wildrydes-prod-recordRide', 'wildrydes-prod-PaymentRecords'), ('wildrydes-prod-recordRide', 'wildrydes-prod-Rides-144HA57HKYVE6'), ('wildrydes-prod-requestUnicorn', 'socialprod'), ('wildrydes-prod-requestUnicorn', 'wildrydes-prod-OccupiedUnicorns-ZC0TEIXM6XLY'), ('wildrydes-prod-requestUnicorn', 'wildrydes-prod-unicornDispatched'), ('wildrydes-prod-requestUnicorn', 'wildrydes-prod-unicornMetric'), ('wildrydes-prod-sendReceipt', 'api.twilio.com'), ('wildrydes-prod-sumRides', 'wildrydes-prod-UnicornStats-18GOCZ26SLUAB'), ('wildrydes-prod-unicornDispatched', 'wildrydes-prod-recordRide'), ('wildrydes-prod-unicornDispatched', 'wildrydes-prod-uploadReceipt'), ('wildrydes-prod-unicornMetric', 'wildrydes-prod-RyderQueue-rvOTc88cl7pn'), ('wildrydes-prod-uploadReceipt', 'wildrydes-prod-ridereceipts-7vvop0svyhs9.s3.us-west-2.amazonaws.com')]", 78],
@@ -79,16 +79,23 @@ def get_adaption_experiment_txs(tx_start: int, tx_end: int, all_txs: List[dict])
 
 
 @lru_cache(maxsize=10)
-def get_all_txs(tx_start: int, tx_end: int, traces_dir: str = TRACES_DIR) -> List[dict]:
+def get_all_txs(tx_start: int, tx_end: int, traces_dir: str) -> List[dict]:
     txs = []
+    error_cnt = 0
     for file in os.listdir(traces_dir):
+        if file.endswith("root_cause.json"):
+            continue
+        if os.path.isdir(os.path.join(traces_dir, file)):
+            continue
         with open(os.path.join(traces_dir, file), "r") as input_file:
             for json_line in input_file.readlines():
                 tx = json.loads(json_line.rstrip(',\n'))
                 if not tx["graph"]["edges"] or not all(e["target"] for e in tx["graph"]["edges"]):
+                    error_cnt += 1
                     continue
                 set_gent_name(tx["nodesData"])
                 txs.append(tx)
+        # print(len(txs), "txs loaded from", file, ", errors", error_cnt)
     result = sorted(txs, key=lambda t: t["details"]["startTime"])[tx_start: tx_end]
     if tx_end != -1 and len(result) != tx_end - tx_start:
         print(f"Warning: Not enough txs, using {len(result)} instead of {tx_end - tx_start}")
