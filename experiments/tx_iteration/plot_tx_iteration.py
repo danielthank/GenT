@@ -71,7 +71,7 @@ ax5 = plt.subplot(gs[1, 1])
 ax5.errorbar(head_samples, head_relative_duration_avg, 
             yerr=head_relative_duration_std, fmt='o-', color='#E1812C', 
             linewidth=2, markersize=6, capsize=4, ecolor='#8B4513')
-ax5.set_ylim(0, 0.7)  # Increased to accommodate error bars
+ax5.set_ylim(0, 0.03)  # Increased to accommodate error bars
 ax5.set_xlabel('Sample Size')
 ax5.set_ylabel('Wasserstein Distance')
 ax5.set_title('Head-Based Traces\nRelative Duration', fontweight='bold')

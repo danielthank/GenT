@@ -31,7 +31,7 @@ def plot_ctgan_dim(gs, results):
     bars2 = ax2.bar(ctgan_dims, relative_duration_avg, yerr=relative_duration_std, 
                 capsize=5, color='#E1812C', alpha=0.8, 
                 error_kw=dict(ecolor='black', lw=1, capsize=5, capthick=1))
-    ax2.set_ylim(0, 0.3)
+    ax2.set_ylim(0, 0.4)
     ax2.set_xlabel('Model Dimensions')
     ax2.set_ylabel('Wasserstein Distance')
     ax2.set_title('Relative Duration (lower is better)', fontweight='bold')
