@@ -9,9 +9,9 @@ import torch.multiprocessing as mp
 from drivers.base_driver import BaseDriver, DriverType
 from drivers.gent.data import ALL_TRACES
 from drivers.gent.metadata_generator_ctgan import MetadataGenerator, \
-    train_and_save_root, train_and_save_chained, continue_train_and_save_root, continue_train_and_save_chained
+    train_and_save_root, train_and_save_chained
 from drivers.gent.start_time_generator_ctgan import StartTimesGenerator, \
-    train_and_save as train_and_save_start_time, continue_train_and_save as continue_train_and_save_start_time
+    train_and_save as train_and_save_start_time
 from ml.app_utils import GenTConfig
 
 

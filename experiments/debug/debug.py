@@ -2,7 +2,6 @@ import os
 import argparse
 import pickle
 from ml.app_utils import GenTConfig
-from drivers.gent.gent_driver import GenTDriver
 from drivers.gent.start_time_generator_ctgan import StartTimesGenerator
 from drivers.gent.metadata_generator_ctgan import MetadataGenerator
 
@@ -17,13 +16,6 @@ def test_start_time(config):
     print()
     print("-" * 20)
     print(f"Generated {len(timestamps_by_graph)} timestamps")
-    for graph, timestamps in timestamps_by_graph.items():
-        print(f"Graph {graph}: {len(timestamps)} timestamps")
-    # print({k: v[:2] for k, v in timestamp.items()})
-    min_timestamp = min([t for v in timestamps_by_graph.values() for t in v])
-    max_timestamp = max([t for v in timestamps_by_graph.values() for t in v])
-    print(f"Min timestamp: {min_timestamp}")
-    print(f"Max timestamp: {max_timestamp}")
 
     start_time_generator.compare()
     os.makedirs(config.results_dir, exist_ok=True)
@@ -47,6 +39,8 @@ def test_metadata(config):
     #metadata_generator.compare()
 
 if __name__ == "__main__":
+    from joblib import parallel_backend
+    parallel_backend("threading")
     parser = argparse.ArgumentParser(description="GenT Driver Test")
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     parser.add_argument('--models_dir', type=str, required=True, help='Directory to store models')
