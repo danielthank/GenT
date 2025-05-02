@@ -4,7 +4,6 @@ import json
 import pickle
 import random
 import uuid
-import warnings
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
@@ -15,23 +14,14 @@ import numpy
 import numpy as np
 import pandas as pd
 import torch
-from torch.multiprocessing import set_start_method
 
-from ctgan import CTGAN
 from ctgan.data_sampler import DataSampler
-
+from drivers.gent.ctgan import CTGANSynthesizer
 from drivers.gent.data import get_full_dataset_chains, edge_index_to_graph, get_graph_counts, ALL_TRACES
 from fidelity.utils import compare_distributions
 from ml.app_denormalizer import prepare_components, prepare_tx_structure
 from ml.app_utils import GenTConfig, get_key_name, get_key_value
 from gent_utils.utils import NpEncoder, device
-
-PROFILE = False
-warnings.filterwarnings('ignore', module='rdt')
-try:
-    set_start_method('spawn')  # To handle multiprocessing with pytorch
-except RuntimeError:
-    pass
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -61,8 +51,8 @@ class MetadataGenerator:
         self.gen_t_config = gen_t_config
         self.models_dir = os.path.join(gen_t_config.models_dir, "metadata")
         self.n_epochs = self.gen_t_config.iterations
-        self.root_generator: Optional[CTGAN] = None
-        self.chained_generator: Optional[CTGAN] = None
+        self.root_generator: Optional[CTGANSynthesizer] = None
+        self.chained_generator: Optional[CTGANSynthesizer] = None
         self.graph_index_to_chains: Dict[int, Tuple[List[int], List[int]]] = {}
         self.column_to_values = {}
         self.node_to_index = {}
@@ -156,7 +146,7 @@ class MetadataGenerator:
     def train_root(self):
         print("Metadata root generator started training")
         dataset, graph_column, chain_column, tx_start_time, str_columns, n_nodes, graph_index_to_edges = self.prepare()
-        self.root_generator = self.root_generator or CTGAN(
+        self.root_generator = self.root_generator or CTGANSynthesizer(
             epochs=self.n_epochs, verbose=True, device=device, with_gcn=self.gen_t_config.with_gcn,
             generator_dim=self.gen_t_config.generator_dim,
             discriminator_dim=self.gen_t_config.discriminator_dim,
@@ -200,7 +190,7 @@ class MetadataGenerator:
     def train_chained(self):
         print("Metadata chain generator started training")
         dataset, graph_column, chain_column, tx_start_time, str_columns, n_nodes, graph_index_to_edges = self.prepare()
-        self.chained_generator = self.chained_generator or CTGAN(
+        self.chained_generator = self.chained_generator or CTGANSynthesizer(
             epochs=self.n_epochs, verbose=True, device=device, with_gcn=self.gen_t_config.with_gcn,
             generator_dim=self.gen_t_config.generator_dim,
             discriminator_dim=self.gen_t_config.discriminator_dim,
@@ -253,7 +243,7 @@ class MetadataGenerator:
         self.use_best(is_root=False)
         self.find_best_seed(is_root=False)
 
-    def _save_generator(self, gen: CTGAN, name: str):
+    def _save_generator(self, gen: CTGANSynthesizer, name: str):
         path = self.models_dir
         pickle.dump(gen, open(f"{path}/{name}_all.pkl", "wb"))
         # This is a hack to make the model smaller
@@ -277,6 +267,7 @@ class MetadataGenerator:
         pickle.dump(self.node_to_index, open(f"{path}/node_to_index.pkl", "wb"))
         pickle.dump(self.graph_index_to_chains, open(f"{path}/graph_index_to_chains.pkl", "wb"))
         pickle.dump(self.best_root_seed, open(f"{path}/best_root_seed.pkl", "wb"))
+        pickle.dump(self.root_generator.min_max_dict, open(f"{path}/root_min_max_dict.pkl", "wb"))
         self.save_root_local()
 
     def save_root_local(self):
@@ -288,6 +279,7 @@ class MetadataGenerator:
         os.makedirs(path, exist_ok=True)
         self._save_generator(self.chained_generator, "chained")
         pickle.dump(self.best_chained_seed, open(f"{path}/best_chained_seed.pkl", "wb"))
+        pickle.dump(self.chained_generator.min_max_dict, open(f"{path}/chained_min_max_dict.pkl", "wb"))
         self.save_chain_local()
 
     def save_chain_local(self):
@@ -297,7 +289,8 @@ class MetadataGenerator:
     def load(self, only_root: bool = False, only_chained: bool = False):
         path = self.models_dir
         def load_generator(name):
-            generator = CTGAN.load(f"{path}/{name}_ctgan_generator.pkl")
+            generator = CTGANSynthesizer.load(f"{path}/{name}_ctgan_generator.pkl")
+            generator.min_max_dict = pickle.load(open(f"{path}/{name}_min_max_dict.pkl", "rb"))
             generator._device = device
             generator._noise.device = device
             generator._data_sampler = DataSampler(np.zeros((0, 0)), np.zeros((0, 0)), True)
@@ -598,31 +591,3 @@ def train_and_save_chained(gen_t_config: GenTConfig, path: Union[str, Path], is_
     gen.train_chained()
     gen.save_chained()
     print("Done train_and_save_chained fidelity:", gen.best_fidelity)
-
-
-if __name__ == '__main__':
-    if PROFILE:
-        import cProfile, pstats, io
-        from pstats import SortKey
-        pr = cProfile.Profile()
-        pr.enable()
-
-    manager = MetadataGenerator.get(
-        GenTConfig(chain_length=2, iterations=3, tx_end=100),
-    )
-    # manager.load_all(path="/Users/saart/cmu/GenT/results/genT/chain_length=2.iterations=300.metadata_str_size=2.metadata_int_size=3.batch_size=10.is_test=False.with_gcn=True.discriminator_dim=(128,).generator_dim=(128,).start_time_with_metadata=False.independent_chains=False.tx_start=0.tx_end=23010/metadata")
-    manager.train_chained()
-    # manager.find_best_seed(is_root=False)
-    # manager.train_root()
-    # manager.save_chained()
-    # manager.load()
-    # print(manager.generate(graph_index=0, tx_start_time=0))
-    # roll_test()
-
-    if PROFILE:
-        pr.disable()
-        s = io.StringIO()
-        sortby = SortKey.CUMULATIVE
-        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        print(s.getvalue())

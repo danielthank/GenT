@@ -1,5 +1,6 @@
 import argparse
 import os
+import multiprocessing
 from drivers.base_driver import BaseDriver
 from drivers.gent.gent_driver import GenTDriver
 from ml.app_utils import GenTConfig
@@ -45,6 +46,7 @@ def chain_length(traces_dir: str, models_dir: str, results_dir: str) -> None:
         measure_configuration(GenTDriver(config), skip_if_exists=True)
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('spawn', force=True)
     parser = argparse.ArgumentParser(description="Chain Length Experiment")
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     parser.add_argument('--models_dir', type=str, required=True, help='Directory to store models')

@@ -3,6 +3,7 @@ import pandas
 import sqlite3
 import numpy as np
 import scipy
+import matplotlib.pyplot as plt
 from typing import List, Tuple
 from fidelity.constants import SECOND, ALL_SAMPLINGS
 
@@ -77,6 +78,42 @@ Where
 
     return results
 
+def plot_first_9_distributions(distributions, no_sampling_distributions, method_name):
+    raw_ratios = no_sampling_distributions[sample_name_by_syn_table(method_name)]
+    sampled_ratios = distributions[method_name]
+
+    common_keys = list(set(raw_ratios.keys()) & set(sampled_ratios.keys()))
+    common_keys = sorted(common_keys)[:9]
+
+    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(15, 10), sharey=True)
+    axes = axes.flatten()
+
+    for idx, key in enumerate(common_keys):
+        ax = axes[idx]
+        raw_data = raw_ratios[key]
+        sampled_data = sampled_ratios[key]
+
+        ax.hist(raw_data, bins=10, alpha=0.5, histtype='step', label=f'No Sampling ({len(raw_data)})', linewidth=3)
+        ax.hist(sampled_data, bins=10, alpha=0.5, histtype='step', label=f'Sampled ({len(sampled_data)})', linewidth=3)
+        #sns.kdeplot(raw_data, ax=ax, label="No Sampling", color="blue", lw=1.5)
+        #sns.kdeplot(sampled_data, ax=ax, label="Sampled", color="orange", lw=1.5)
+
+        w_dist = scipy.stats.wasserstein_distance(raw_data, sampled_data)
+
+        ax.set_title(f"Key: {key}\nW-dist = {w_dist:.4f}", fontsize=10)
+        ax.set_xlabel("Ratio")
+        if idx % 3 == 0:
+            ax.set_ylabel("Count")
+        ax.grid(True)
+        ax.legend(fontsize='x-small')
+
+    for ax in axes[len(common_keys):]:
+        ax.axis('off')
+
+    fig.suptitle(f"Ratio Distributions for {method_name}", fontsize=18)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+
 def relative_duration(conn: sqlite3.Connection, syn_tables: List[str], groups: List[str], with_sampling: bool = True, seconds: int = 60):
     def build_query(sampling: str, table_name: str) -> str:
         return f'''
@@ -110,6 +147,13 @@ def relative_duration(conn: sqlite3.Connection, syn_tables: List[str], groups: L
         }
     }
 
+    """
+    print("no_sample")
+    print(no_sample)
+    print("raw_results")
+    print(raw_results)
+    """
+
     results = {}
     distributions = {
         s: {k: v['ratio'].tolist() for k, v in raw.groupby(groups)}
@@ -129,4 +173,6 @@ def relative_duration(conn: sqlite3.Connection, syn_tables: List[str], groups: L
             "avg": np.average(distances),
             "std": np.std(distances)
         }
+    for method in results:
+        plot_first_9_distributions(distributions, no_sampling_distributions, method)
     return results

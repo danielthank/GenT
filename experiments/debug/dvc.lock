@@ -16,12 +16,12 @@ stages:
     outs:
     - path: models/start_time
       hash: md5
-      md5: d037bc74e5f0736a4d1bdca616028338.dir
-      size: 4373658
+      md5: 0966ba9d83bbf996ffbfcd3b7e233f73.dir
+      size: 4373662
       nfiles: 8
     - path: results/timestamps_by_graph.pkl
       hash: md5
-      md5: c7688731d9702e0b5c4a76dcaf1867cc
+      md5: ab60c358282099d65374a9dfd8fcdc54
       size: 85321
   metadata:
     cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent
@@ -34,19 +34,19 @@ stages:
       nfiles: 3
     - path: debug.py
       hash: md5
-      md5: a5f528ce427b1e793e0ff9d462a84f75
-      size: 2647
+      md5: 1f7de3e3729a3c6d2a140401ee698722
+      size: 2596
     - path: results/timestamps_by_graph.pkl
       hash: md5
-      md5: c7688731d9702e0b5c4a76dcaf1867cc
+      md5: ab60c358282099d65374a9dfd8fcdc54
       size: 85321
     outs:
     - path: models/metadata
       hash: md5
-      md5: 89a668d1ce172f135911d55fed37097b.dir
-      size: 47554811
+      md5: 9e9814e54f41ddb4b781d367727dff0a.dir
+      size: 77550872
       nfiles: 12
     - path: results/generated.json
       hash: md5
-      md5: d4404e392b25cf77acf006a3e766b44b
-      size: 25053392
+      md5: 5462e973ca762bf39183be250c9c674b
+      size: 25081534

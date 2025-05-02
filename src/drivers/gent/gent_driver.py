@@ -5,7 +5,7 @@ import tempfile
 import time
 from typing import List
 
-from multiprocessing.pool import Pool
+import torch.multiprocessing as mp
 from drivers.base_driver import BaseDriver, DriverType
 from drivers.gent.data import ALL_TRACES
 from drivers.gent.metadata_generator_ctgan import MetadataGenerator, \
@@ -67,7 +67,7 @@ class GenTDriver(BaseDriver):
         # train_and_save_start_time(self.gen_t_config, os.path.join(self.get_work_folder(), "start_time"))
         # train_and_save_root(self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))
         # train_and_save_chained(self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))
-        with Pool(processes=3) as pool:
+        with mp.Pool(processes=3) as pool:
             processes = [
                 pool.apply_async(train_and_save_start_time, (self.gen_t_config, os.path.join(self.get_results_folder(), "start_time"))),
                 pool.apply_async(train_and_save_root, (self.gen_t_config, os.path.join(self.get_results_folder(), "metadata"))),

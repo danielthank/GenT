@@ -238,6 +238,7 @@ def extract_node_features(
     node: dict, parent: Optional[dict], tx_start_time: int, config: GenTConfig
 ) -> RowType:
     start_time = get_time(node, tx_start_time)
+    # TODO: why 5000?
     gap_from_parent = min(max(start_time - get_time(parent, tx_start_time) if parent else 0, 0), 5000)
     duration = node["duration"] if node["duration"] < 5000 else 0
     has_error = 1 if node["issues"] else 0

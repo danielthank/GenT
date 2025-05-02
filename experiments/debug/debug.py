@@ -44,7 +44,6 @@ def test_metadata(config):
     metadata_generator.train_chained()
     metadata_generator.generate_traces_corpus(config.results_dir, timestamps_by_graph)
     metadata_generator.save()
-    #metadata_generator.generate_metadata_corpus()
     #metadata_generator.compare()
 
 if __name__ == "__main__":

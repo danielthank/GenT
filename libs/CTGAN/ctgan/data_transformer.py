@@ -161,7 +161,8 @@ class DataTransformer(object):
                 process = delayed(self._transform_discrete)(column_transform_info, data)
             processes.append(process)
 
-        return Parallel(n_jobs=-1)(processes)
+        with Parallel(n_jobs=-1) as parallel:
+            return parallel(processes)
 
     def transform(self, raw_data):
         """Take raw data and output a matrix data."""
@@ -171,6 +172,7 @@ class DataTransformer(object):
 
         # Only use parallelization with larger data sizes.
         # Otherwise, the transformation will be slower.
+        """
         if raw_data.shape[0] < 500:
             column_data_list = self._synchronous_transform(
                 raw_data,
@@ -181,6 +183,11 @@ class DataTransformer(object):
                 raw_data,
                 self._column_transform_info_list
             )
+        """
+        column_data_list = self._synchronous_transform(
+            raw_data,
+            self._column_transform_info_list
+        )
 
         return np.concatenate(column_data_list, axis=1).astype(float)
 

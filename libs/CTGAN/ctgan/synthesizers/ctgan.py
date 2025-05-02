@@ -649,39 +649,60 @@ class CTGAN(BaseSynthesizer):
                 tx_start_time = torch.from_numpy(self._start_time_transformer.transform(tx_start_time))
             tx_start_time = tx_start_time.type(torch.float32).to(self._device)
 
+        def get_batched_data(data, f, t, batch_size):
+            if data is None:
+                return None
+                
+            slice_data = data[f:t]
+            
+            if len(slice_data) < batch_size:
+                # Use indexing with modulo to repeat the tensor
+                indices = torch.arange(batch_size) % len(slice_data)
+                return slice_data[indices]
+            else:
+                return slice_data
+
         steps = (n-1) // self._batch_size + 1
         data = []
-        plus_one = False
         for i in range(steps):
             f, t = i * self._batch_size, min((i + 1) * self._batch_size, n)
-            if t - f == 1:
-                plus_one = True
-                f -= 1
-            mean = torch.zeros(t - f, self._embedding_dim)
+            batch_size = max(2, t - f)
+
+            mean = torch.zeros(batch_size, self._embedding_dim)
             std = mean + 1
             fakez = torch.normal(mean=mean, std=std).to(self._device)
+            batched_graphs = get_batched_data(graph, f, t, batch_size)
+            batched_chain = get_batched_data(chain, f, t, batch_size)
+            batched_trigger_data = get_batched_data(metadata, f, t, batch_size)
+            batched_tx_start_time = get_batched_data(tx_start_time, f, t, batch_size)
 
             condvec = self._noise.generate_noise_from_metadata(
-                batched_graphs=graph[f:t],
-                batched_chain=chain[f:t],
-                trigger_data=metadata[f:t] if metadata is not None else None,
-                tx_start_time=tx_start_time[f:t] if tx_start_time is not None else None
+                batched_graphs=batched_graphs,
+                batched_chain=batched_chain,
+                trigger_data=batched_trigger_data,
+                tx_start_time=batched_tx_start_time
             )
 
             if condvec is None:
                 pass
             else:
                 c1 = condvec
-                fakez = torch.cat([fakez, c1], dim=1)
+                try:
+                    fakez = torch.cat([fakez, c1], dim=1)
+                except Exception as e:
+                    print("Exception: ", e)
+                    print("fakez", fakez.shape, fakez)
+                    print("c1", c1.shape, c1)
+                    raise e
 
             fake = self._generator(fakez)
             fakeact = self._apply_activate(fake)
-            if plus_one:
-                fakeact = fakeact[1:]
+            fakeact = fakeact[:t-f]
             data.append(fakeact.detach().cpu().numpy())
 
         data = np.concatenate(data, axis=0)
         data = data[:n]
+        assert(len(data) == n)
 
         return self._transformer.inverse_transform(data, columns=columns)
 
