@@ -2,10 +2,12 @@ import pandas as pd
 import torch
 import numpy as np
 
-from typing import Dict, List, Optional, Tuple
+from sdv.metadata import Metadata
+from sdv.single_table import CTGANSynthesizer
+from typing import List, Optional, Tuple
 from ctgan import CTGAN
 
-class CTGANSynthesizer:
+class CTGANSynthesizerWrapper:
     """
     A wrapper class for CTGAN that provides a simplified interface for training and 
     sampling synthetic data.
@@ -21,18 +23,10 @@ class CTGANSynthesizer:
         discriminator_lr: float = 2e-4,
         discriminator_decay: float = 1e-6,
         batch_size: int = 500,
-        discriminator_steps: int = 1,
         log_frequency: bool = False,
         verbose: bool = False,
         epochs: int = 300,
         pac: int = 10,
-        device: str = None,
-        with_gcn: bool = False,
-        functional_loss=None,
-        functional_loss_freq: int = 0,
-        n_nodes: int = 0,
-        graph_index_to_edges: Dict[int, torch.Tensor] = None,
-        name: str = None
     ):
         """
         Initialize the CTGANSynthesizer.
@@ -46,20 +40,12 @@ class CTGANSynthesizer:
             discriminator_lr: Learning rate for the discriminator.
             discriminator_decay: L2 regularization weight for the discriminator.
             batch_size: Number of data samples to process in each step.
-            discriminator_steps: Number of discriminator updates per generator update.
             log_frequency: Whether to use log frequency of categorical levels.
             verbose: Whether to show verbose logs.
             epochs: Number of training epochs.
             pac: Number of samples to group together when applying the discriminator.
-            device: Device to use for running the model.
-            with_gcn: Whether to use Graph Convolutional Networks.
-            functional_loss: Custom loss function.
-            functional_loss_freq: Frequency for applying the functional loss.
-            n_nodes: Number of nodes in the graph.
-            graph_index_to_edges: Mapping from graph indices to edge tensors.
-            name: Name of the model.
         """
-        self.model = CTGAN(
+        self.model = CTGANSynthesizer(
             embedding_dim=embedding_dim,
             generator_dim=generator_dim,
             discriminator_dim=discriminator_dim,
@@ -68,136 +54,24 @@ class CTGANSynthesizer:
             discriminator_lr=discriminator_lr,
             discriminator_decay=discriminator_decay,
             batch_size=batch_size,
-            discriminator_steps=discriminator_steps,
             log_frequency=log_frequency,
             verbose=verbose,
             epochs=epochs,
             pac=pac,
-            device=device,
-            with_gcn=with_gcn,
-            functional_loss=functional_loss,
-            functional_loss_freq=functional_loss_freq,
-            n_nodes=n_nodes,
-            graph_index_to_edges=graph_index_to_edges,
-            name=name
         )
         self.training_metadata = None
-        self.min_max_dict = None
      
-    @property
-    def _generator(self):
-        """
-        Property to access the underlying CTGAN model's _generator attribute.
-        """
-        return self.model._generator
-
-    @property
-    def _noise(self):
-        """
-        Property to access the underlying CTGAN model's _noise attribute.
-        """
-        return self.model._noise
-
-    @property
-    def _data_sampler(self):
-        """
-        Property to access the underlying CTGAN model's _data_sampler attribute.
-        """
-        return self.model._data_sampler
- 
-    @_data_sampler.setter
-    def _data_sampler(self, value):
-        """
-        Setter for the _data_sampler attribute.
-        """
-        self.model._data_sampler = value
-    
-    @property
-    def graph_index_to_edges(self):
-        """
-        Property to access the underlying CTGAN model's graph_index_to_edges attribute.
-        """
-        return self.model.graph_index_to_edges
-    
-    @graph_index_to_edges.setter
-    def graph_index_to_edges(self, value):
-        """
-        Setter for the graph_index_to_edges attribute.
-        """
-        self.model.graph_index_to_edges = value
-
     def fit(
         self,
         train_data: pd.DataFrame,
-        discrete_columns: List[str] = None,
-        graph_data: Optional[pd.Series] = None,
-        chain_data: Optional[pd.Series] = None,
-        tx_start_time: Optional[pd.Series] = None,
-        metadata: Optional[pd.DataFrame] = None,
-        metadata_discrete_columns: List[str] = None
     ):
         """
         Train the CTGAN model.
         
         Args:
             train_data: Training data.
-            discrete_columns: List of discrete columns.
-            graph_data: Graph identifiers for each sample.
-            chain_data: Chain identifiers for each sample.
-            tx_start_time: Transaction start times.
-            metadata: Additional metadata for conditioning.
-            metadata_discrete_columns: List of discrete columns in metadata.
-            
-        Returns:
-            Training metadata that can be used for continuing training.
         """
-        self.min_max_dict = {}
-        for col in train_data.columns:
-            if 'gapFromParent' in col or 'duration' in col:
-                self.min_max_dict[col] = (train_data[col].min(), train_data[col].max())
-        self.training_metadata = self.model.fit(
-            train_data=train_data,
-            discrete_columns=discrete_columns,
-            graph_data=graph_data,
-            chain_data=chain_data,
-            tx_start_time=tx_start_time,
-            metadata=metadata,
-            metadata_discrete_columns=metadata_discrete_columns
-        )
-        return self.training_metadata
-
-    def continue_fit(
-        self,
-        train_data: pd.DataFrame,
-        graph_data: pd.Series,
-        chain_data: pd.Series,
-        tx_start_time: pd.Series,
-        metadata: Optional[pd.DataFrame] = None,
-        **metadata_dict
-    ):
-        """
-        Continue training the CTGAN model from a previous state.
-        
-        Args:
-            train_data: Training data.
-            graph_data: Graph identifiers for each sample.
-            chain_data: Chain identifiers for each sample.
-            tx_start_time: Transaction start times.
-            metadata: Additional metadata for conditioning.
-            metadata_dict: Dictionary containing the previous training state.
-            
-        Returns:
-            Updated training metadata.
-        """
-        self.training_metadata = self.model.continue_fit(
-            train_data=train_data,
-            graph_data=graph_data,
-            chain_data=chain_data,
-            tx_start_time=tx_start_time,
-            metadata=metadata,
-            **metadata_dict
-        )
-        return self.training_metadata
+        self.model.fit(train_data)
 
     def sample(
         self,
@@ -296,11 +170,6 @@ class CTGANSynthesizer:
             retry_indices = retry_indices[still_invalid_retry_indices]
             
             retry_count += 1
-        
-        for index in retry_indices:
-            for col in time_columns:
-                min_val, max_val = self.min_max_dict[col]
-                result_data.at[index, col] = np.clip(result_data.at[index, col], min_val, max_val)
         
         return result_data
 
