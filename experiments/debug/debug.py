@@ -1,6 +1,7 @@
 import os
 import argparse
 import pickle
+from joblib import parallel_backend
 from ml.app_utils import GenTConfig
 from drivers.gent.start_time_generator_ctgan import StartTimesGenerator
 from drivers.gent.metadata_generator_ctgan import MetadataGenerator
@@ -12,15 +13,15 @@ def test_start_time(config):
 
     start_time_generator = StartTimesGenerator.get(config)
     start_time_generator.train()
-    timestamps_by_graph = start_time_generator.generate_timestamps_corpus()
+    timestamps = start_time_generator.generate_timestamps_corpus()
     print()
     print("-" * 20)
-    print(f"Generated {len(timestamps_by_graph)} timestamps")
+    print(f"Generated {len(timestamps)} timestamps")
 
     start_time_generator.compare()
     os.makedirs(config.results_dir, exist_ok=True)
-    path = os.path.join(config.results_dir, "timestamps_by_graph.pkl")
-    pickle.dump(timestamps_by_graph, open(path, "wb"))
+    path = os.path.join(config.results_dir, "timestamps.pkl")
+    pickle.dump(timestamps, open(path, "wb"))
 
     start_time_generator.save()
 
@@ -28,18 +29,17 @@ def test_start_time(config):
 def test_metadata(config):
     # driver = GenTDriver(config)
 
-    path = os.path.join(config.results_dir, "timestamps_by_graph.pkl")
-    timestamps_by_graph = pickle.load(open(path, "rb"))
+    path = os.path.join(config.results_dir, "timestamps.pkl")
+    timestamps = pickle.load(open(path, "rb"))
 
     metadata_generator = MetadataGenerator.get(config)
     metadata_generator.train_root()
     metadata_generator.train_chained()
-    metadata_generator.generate_traces_corpus(config.results_dir, timestamps_by_graph)
+    metadata_generator.generate_traces_corpus(config.results_dir, timestamps)
     metadata_generator.save()
     #metadata_generator.compare()
 
 if __name__ == "__main__":
-    from joblib import parallel_backend
     parallel_backend("threading")
     parser = argparse.ArgumentParser(description="GenT Driver Test")
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')

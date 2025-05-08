@@ -5,14 +5,14 @@ stages:
     - ../../data/socialNetwork/
     - debug.py
     outs:
-    - results/timestamps_by_graph.pkl
+    - results/timestamps.pkl
     - models/start_time
   metadata:
     cmd: PYTHONPATH=../../src python debug.py --traces_dir ../../data/socialNetwork/baseline/gent --models_dir ./models --results_dir ./results
       --test metadata
     deps:
     - ../../data/socialNetwork/
-    - results/timestamps_by_graph.pkl
+    - results/timestamps.pkl
     - debug.py
     outs:
     - models/metadata

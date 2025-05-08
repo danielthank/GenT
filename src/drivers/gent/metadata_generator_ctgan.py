@@ -16,7 +16,7 @@ import pandas as pd
 import torch
 
 from ctgan.data_sampler import DataSampler
-from drivers.gent.ctgan import CTGANSynthesizer
+from drivers.gent.ctgan import CTGANSynthesizerWrapper
 from drivers.gent.data import get_full_dataset_chains, edge_index_to_graph, get_graph_counts, ALL_TRACES
 from fidelity.utils import compare_distributions
 from ml.app_denormalizer import prepare_components, prepare_tx_structure
@@ -51,8 +51,8 @@ class MetadataGenerator:
         self.gen_t_config = gen_t_config
         self.models_dir = os.path.join(gen_t_config.models_dir, "metadata")
         self.n_epochs = self.gen_t_config.iterations
-        self.root_generator: Optional[CTGANSynthesizer] = None
-        self.chained_generator: Optional[CTGANSynthesizer] = None
+        self.root_generator: Optional[CTGANSynthesizerWrapper] = None
+        self.chained_generator: Optional[CTGANSynthesizerWrapper] = None
         self.graph_index_to_chains: Dict[int, Tuple[List[int], List[int]]] = {}
         self.column_to_values = {}
         self.node_to_index = {}
@@ -146,18 +146,14 @@ class MetadataGenerator:
     def train_root(self):
         print("Metadata root generator started training")
         dataset, graph_column, chain_column, tx_start_time, str_columns, n_nodes, graph_index_to_edges = self.prepare()
-        self.root_generator = self.root_generator or CTGANSynthesizer(
-            epochs=self.n_epochs, verbose=True, device=device, with_gcn=self.gen_t_config.with_gcn,
+        self.root_generator = self.root_generator or CTGANSynthesizerWrapper(
+            epochs=self.n_epochs, verbose=True,
             generator_dim=self.gen_t_config.generator_dim,
             discriminator_dim=self.gen_t_config.discriminator_dim,
-            n_nodes=n_nodes, graph_index_to_edges=graph_index_to_edges,
-            functional_loss=partial(self.functional_loss, is_root=True),
-            functional_loss_freq=self.functional_loss_freq,
             generator_lr=2e-2,
             generator_decay=1e-6,
             discriminator_lr=2e-2,
-            discriminator_decay=1e-6,
-            name='root',
+            discriminator_decay=1e-6
         )
 
         relevant_indexes = (dataset["is_root_chain"] == True)
@@ -190,18 +186,14 @@ class MetadataGenerator:
     def train_chained(self):
         print("Metadata chain generator started training")
         dataset, graph_column, chain_column, tx_start_time, str_columns, n_nodes, graph_index_to_edges = self.prepare()
-        self.chained_generator = self.chained_generator or CTGANSynthesizer(
-            epochs=self.n_epochs, verbose=True, device=device, with_gcn=self.gen_t_config.with_gcn,
+        self.chained_generator = self.chained_generator or CTGANSynthesizerWrapper(
+            epochs=self.n_epochs, verbose=True,
             generator_dim=self.gen_t_config.generator_dim,
             discriminator_dim=self.gen_t_config.discriminator_dim,
-            n_nodes=n_nodes, graph_index_to_edges=graph_index_to_edges,
-            functional_loss=partial(self.functional_loss, is_root=False),
-            functional_loss_freq=self.functional_loss_freq,
             generator_lr=2e-2,
             generator_decay=1e-6,
             discriminator_lr=2e-2,
-            discriminator_decay=1e-6,
-            name='chained',
+            discriminator_decay=1e-6
         )
 
         relevant_indexes = (dataset["is_root_chain"] == False)
@@ -243,7 +235,7 @@ class MetadataGenerator:
         self.use_best(is_root=False)
         self.find_best_seed(is_root=False)
 
-    def _save_generator(self, gen: CTGANSynthesizer, name: str):
+    def _save_generator(self, gen: CTGANSynthesizerWrapper, name: str):
         path = self.models_dir
         pickle.dump(gen, open(f"{path}/{name}_all.pkl", "wb"))
         # This is a hack to make the model smaller
@@ -289,7 +281,7 @@ class MetadataGenerator:
     def load(self, only_root: bool = False, only_chained: bool = False):
         path = self.models_dir
         def load_generator(name):
-            generator = CTGANSynthesizer.load(f"{path}/{name}_ctgan_generator.pkl")
+            generator = CTGANSynthesizerWrapper.load(f"{path}/{name}_ctgan_generator.pkl")
             generator.min_max_dict = pickle.load(open(f"{path}/{name}_min_max_dict.pkl", "rb"))
             generator._device = device
             generator._noise.device = device
