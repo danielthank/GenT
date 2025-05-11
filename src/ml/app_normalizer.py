@@ -3,24 +3,17 @@ import json
 import math
 import os
 import argparse
-from typing import Dict, Generator, List, Optional, Tuple, Union, NamedTuple
+
+from typing import Dict, Generator, List, Optional, Tuple, Union
+from ml.app_utils import EMPTY, MetadataType, GenTConfig
 
 RowType = List[Union[str, int]]
 
-from ml.app_utils import (
-    EMPTY,
-    MetadataType,
-    GenTConfig,
-    get_features,
-    get_metadata_size,
-    remember_type,
-    store_global_metadata,
-)
 INITIAL_ROW_HEADERS = ["traceId", "txStartTime", "chain"]
 PER_COMPONENT_HEADERS = [
     "gapFromParent_{component_index}",
     "duration_{component_index}",
-    "hasError_{component_index}",
+    # "hasError_{component_index}",
 ]
 METADATA_HEADER = "metadata_{component_index}_{metadata_index}"
 
@@ -242,10 +235,14 @@ def extract_node_features(
     gap_from_parent = min(max(start_time - get_time(parent, tx_start_time) if parent else 0, 0), 5000)
     duration = node["duration"] if node["duration"] < 5000 else 0
     has_error = 1 if node["issues"] else 0
-    int_features, string_features = extract_metadata(node)
+    # TODO: handle has_error and metadata when we have those data
+    # int_features, string_features = extract_metadata(node)
+    return [gap_from_parent, duration]
+    """
     return [gap_from_parent, duration, has_error] + get_features(  # type: ignore
         node["gent_name"], int_features, string_features, config=config
     )
+    """
 
 
 def get_chains(
@@ -359,12 +356,15 @@ def get_csv_headers(config: GenTConfig) -> List[str]:
         headers += [
             h.format(component_index=component_index) for h in PER_COMPONENT_HEADERS
         ]
+        # TODO: handle metadata
+        """
         for metadata_index in range(get_metadata_size(config)):
             headers += [
                 METADATA_HEADER.format(
                     component_index=component_index, metadata_index=metadata_index
                 )
             ]
+        """
     return headers
 
 
@@ -388,7 +388,6 @@ def normalize_data(input_dir: str, config: GenTConfig) -> None:
                     for row in extract_rows_from_transaction(tx, config=config):
                         writer.writerow(row)
 
-    store_global_metadata(config)
     print(f"Found a total of {len(all_nodes)} nodes and {len(all_chains)} chains")
 
 

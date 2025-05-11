@@ -8,12 +8,9 @@ from typing import List
 import torch.multiprocessing as mp
 from drivers.base_driver import BaseDriver, DriverType
 from drivers.gent.data import ALL_TRACES
-from drivers.gent.metadata_generator_ctgan import MetadataGenerator, \
-    train_and_save_root, train_and_save_chained
-from drivers.gent.start_time_generator_ctgan import StartTimesGenerator, \
-    train_and_save as train_and_save_start_time
+from drivers.gent.metadata_generator_ctgan import MetadataGenerator, train_and_save_root, train_and_save_chained
+from drivers.gent.start_time_generator_ctgan import StartTimesGenerator, train_and_save as train_and_save_start_time
 from ml.app_utils import GenTConfig
-
 
 class GenTDriver(BaseDriver):
     def __init__(self, gen_t_config: GenTConfig):
@@ -32,21 +29,14 @@ class GenTDriver(BaseDriver):
         return os.path.join(self.get_results_folder(), "generated")
     
     def _get_model_files(self) -> List[str]:
-        # TODO: verify if these covers all the files
         return [
-            os.path.join(self.get_models_folder(), "metadata", "chained_ctgan_generator.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "root_ctgan_generator.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "column_to_values.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "graph_index_to_chains.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "graph_index_to_edges.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "node_to_index.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "best_root_seed.pkl"),
-            os.path.join(self.get_models_folder(), "metadata", "best_chained_seed.pkl"),
             os.path.join(self.get_models_folder(), "start_time", "start_time_ctgan_generator.pkl"),
-            os.path.join(self.get_models_folder(), "start_time", "best_seed.pkl"),
-            os.path.join(self.get_models_folder(), "start_time", "graph_values.pkl"),
-            os.path.join(self.get_models_folder(), "start_time", "min_real_timestamp.pkl"),
-            os.path.join(self.get_models_folder(), "start_time", "max_real_timestamp.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "root_ctgan_generator.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "chained_ctgan_generator.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "all_graph_values.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "all_chain_values.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "node_to_index.pkl"),
+            os.path.join(self.get_models_folder(), "metadata", "graph_index_to_chains.pkl"),
         ]
 
     def get_model_size(self) -> int:

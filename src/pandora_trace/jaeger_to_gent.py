@@ -59,6 +59,7 @@ def _handle_jaeger_trace(jaeger_trace: dict) -> dict:
         span_id_to_ts_name[span["spanID"]] = name
     for span in jaeger_trace["spans"]:
         span_id_to_component_id[span["spanID"]] = len(components)
+        # TODO: see if we need to add serviceType in Component class
         components.append(Component(
             component_id=span_id_to_ts_name[span["spanID"]],
             start_time=span["startTime"],
@@ -70,7 +71,6 @@ def _handle_jaeger_trace(jaeger_trace: dict) -> dict:
             children_ids=[],
             group="",
             metadata={t["key"]: t["value"] for t in span["tags"]} | {f"process_{t['key']}": t["value"] for t in jaeger_trace['processes'][span["processID"]]['tags']},
-            component_type="jaeger",
             duration=span["duration"]
         ))
     for span in jaeger_trace["spans"]:

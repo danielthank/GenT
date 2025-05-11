@@ -75,7 +75,6 @@ def prepare_components(
                 group=str(raw_component["componentName"]),
                 has_error=bool(raw_component["hasError"]),
                 metadata=raw_component["metadata"],
-                component_type="lambda",
             )
         )
     return list({c.component_id: c for c in components}.values())
@@ -86,7 +85,6 @@ def denormalize_data_baseline(
 ) -> None:
     if not os.listdir(input_dir):
         raise Exception("No data to denormalize")
-    load_global_metadata()
     for filename in os.listdir(input_dir):
         df = pd.read_csv(os.path.join(input_dir, filename), error_bad_lines=False)
 

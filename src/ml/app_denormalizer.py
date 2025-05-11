@@ -1,19 +1,12 @@
 import json
 import os
-from collections import defaultdict
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Set
-
 import numpy as np
 import pandas as pd
 
+from collections import defaultdict
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Set
 from drivers.base_driver import BaseDriver
-from ml.app_utils import (
-    ComponentType,
-    GenTConfig,
-    get_component_type,
-    get_key_name,
-    get_metadata_size, get_key_value,
-)
+from ml.app_utils import GenTConfig
 
 
 class Component(NamedTuple):
@@ -24,7 +17,6 @@ class Component(NamedTuple):
     children_ids: List[str]
     group: str
     has_error: bool
-    component_type: Optional[ComponentType]
     metadata: Dict[str, Union[str, int]]
 
 
@@ -123,6 +115,7 @@ def prepare_components(
         recursive_update_times(root, tx_start_time)  # type: ignore
 
     components: List[Component] = []
+    # TODO: fix has_error when we have has_error in the data
     for raw_component in raw_components.values():
         components.append(
             Component(
@@ -139,11 +132,9 @@ def prepare_components(
                     if component["componentName"] in raw_components
                 ],
                 group=str(raw_component["componentName"]),
-                has_error=bool(raw_component["hasError"]),
+                has_error=False,
+                # has_error=bool(raw_component["hasError"]),
                 metadata=raw_component["metadata"],  # type: ignore
-                component_type=get_component_type(
-                    str(raw_component["componentName"]), config=config
-                ),
             )
         )
     return list({c.component_id: c for c in components}.values())
@@ -184,6 +175,7 @@ def prepare_tx_structure(
     """
     Each transaction is being translated to a few rows, one for each component in the transaction graph.
     """
+    # TODO: handle serviceType when we have more serviceType
     tx_start = min([c.start_time for c in components])
     tx_end = max([c.end_time for c in components])
     nodes = {}
@@ -194,7 +186,7 @@ def prepare_tx_structure(
             "resource": {
                 "id": component.component_id,
                 "name": component.component_id,
-                "serviceType": component.component_type,
+                "serviceType": "jaeger",
                 **(
                     {"region": str(component.metadata["region"])}
                     if component.metadata.get("region")
@@ -216,10 +208,8 @@ def prepare_tx_structure(
                     "message": "Issue",
                     "description": "Issue",
                 }
-            ]
-            if component.has_error
-            else [],
-            "type": component.component_type,
+            ] if component.has_error else [],
+            "type": "jaeger"
         }
         timeline_items.append(
             {

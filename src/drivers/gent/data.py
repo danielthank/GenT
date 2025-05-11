@@ -1,17 +1,16 @@
 import datetime
 import json
 import os
-
 import numpy as np
 import pandas as pd
-import torch
+
 from collections import defaultdict
 from functools import lru_cache
 from typing import List, Tuple, Dict
 from matplotlib import pyplot
 
 from ml.app_normalizer import extract_rows_from_transaction, get_csv_headers, set_gent_name
-from ml.app_utils import GenTConfig, store_global_metadata
+from ml.app_utils import GenTConfig
 
 ALL_TRACES = 13911
 GRAPH_COUNTS: List[Tuple[str, int]] = [
@@ -36,11 +35,6 @@ CONFIG_RATE = GenTConfig(chain_length=2, iterations=5, tx_start=2 * BULK_SIZE, t
 CONFIG_LESS_ERRORS = GenTConfig(chain_length=2, iterations=5, tx_start=3 * BULK_SIZE, tx_end=4 * BULK_SIZE)
 ROLLING_EXPERIMENT_NAMES = ["base", "error", "rate", "less_errors"]
 ROLLING_EXPERIMENT_CONFIGS = [CONFIG_BASE, CONFIG_ERROR, CONFIG_RATE, CONFIG_LESS_ERRORS]
-
-
-def edge_index_to_graph(edge_index: torch.Tensor, index_to_node: Dict[int, str]) -> str:
-    return str([(index_to_node[edge_index[0][i].item()], index_to_node[edge_index[1][i].item()]) for i in range(edge_index.shape[1])])
-
 
 def get_adaption_experiment_txs(tx_start: int, tx_end: int, all_txs: List[dict]) -> List[dict]:
     if tx_start == CONFIG_ERROR.tx_start and tx_end == CONFIG_ERROR.tx_end:
@@ -119,9 +113,25 @@ def get_full_dataset_chains(config: GenTConfig, load_all: bool = False) -> Tuple
     column_names = ["graph"] + get_csv_headers(config)[1:] + ["is_root_chain"]
     all_df = pd.DataFrame(all_parsed_txs, columns=column_names)
     subset_df = pd.DataFrame(subset_parsed_txs, columns=column_names)
-    store_global_metadata(config)
     return subset_df, all_df
 
+def get_full_dataset_start_times(config: GenTConfig, load_all: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    relevant_txs = get_all_txs(0, ALL_TRACES, config.traces_dir) if load_all else get_all_txs(config.tx_start, config.tx_end, config.traces_dir)
+    all_parsed_txs = []
+    subset_parsed_txs = []
+    for tx_index, tx in enumerate(relevant_txs):
+        edges = sorted({(tx["nodesData"][n["source"]]["gent_name"],
+                         tx["nodesData"][n["target"]]["gent_name"]) for n in tx["graph"]["edges"]})
+        graph = str(edges)
+        start_time = tx["details"]["startTime"]
+        row = [graph, start_time] 
+        all_parsed_txs.append(row)
+        if config.tx_start <= tx_index < config.tx_end:
+            subset_parsed_txs.append(row)
+    column_names = ["graph", "startTime"]
+    all_df = pd.DataFrame(all_parsed_txs, columns=column_names)
+    subset_df = pd.DataFrame(subset_parsed_txs, columns=column_names)
+    return subset_df, all_df
 
 @lru_cache(maxsize=1000)
 def get_graph_counts(traces_dir: str, tx_start: int = 0, tx_end: int = 2 ** 32) -> Dict[str, int]:

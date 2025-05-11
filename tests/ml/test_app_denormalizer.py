@@ -2,17 +2,7 @@ import pandas as pd
 import pytest
 
 from ml.app_denormalizer import Component, prepare_components
-from ml.app_utils import GenTConfig, store_global_metadata
-
-
-@pytest.fixture
-def config(tmp_path):
-    test_config = GenTConfig(
-        chain_length=1, metadata_int_size=1, metadata_str_size=0, is_test=True
-    )
-    store_global_metadata(test_config)
-    return test_config
-
+from ml.app_utils import GenTConfig
 
 def test_prepare_components(tmp_path, config):
     raw_data = pd.DataFrame(
@@ -40,7 +30,6 @@ def test_prepare_components(tmp_path, config):
             children_ids=["top", "a"],
             group="top",
             has_error=False,
-            component_type=None,
             metadata={},
         ),
         Component(
@@ -51,7 +40,6 @@ def test_prepare_components(tmp_path, config):
             children_ids=[],
             group="a",
             has_error=True,
-            component_type=None,
             metadata={},
         ),
     ]
@@ -83,7 +71,6 @@ def test_prepare_components_duplicate(config):
             children_ids=[],
             group="a",
             has_error=False,
-            component_type=None,
             metadata={},
         ),
     ]
@@ -111,7 +98,6 @@ def test_prepare_components_shared_root(tmp_path):
     config = GenTConfig(
         chain_length=2, metadata_int_size=0, metadata_str_size=0, is_test=True
     )
-    store_global_metadata(config)
 
     components = prepare_components(raw_data, config)
     assert components == [
@@ -123,7 +109,6 @@ def test_prepare_components_shared_root(tmp_path):
             children_ids=["b", "c"],
             group="a",
             has_error=False,
-            component_type=None,
             metadata={},
         ),
         Component(
@@ -134,7 +119,6 @@ def test_prepare_components_shared_root(tmp_path):
             children_ids=[],
             group="b",
             has_error=True,
-            component_type=None,
             metadata={},
         ),
         Component(
@@ -145,7 +129,7 @@ def test_prepare_components_shared_root(tmp_path):
             children_ids=[],
             group="c",
             has_error=True,
-            component_type=None,
+            
             metadata={},
         ),
     ]

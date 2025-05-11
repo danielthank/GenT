@@ -1,12 +1,10 @@
 import csv
 import json
 import os
+
 from typing import Dict, List, Union
-
-import numpy as np
-
 from ml.app_normalizer import extract_metadata, get_name
-from paper.baseline.app_baseline_utils import remember_component_fields, store_global_metadata, EMPTY
+from paper.baseline.app_baseline_utils import remember_component_fields, EMPTY
 
 
 def extract_rows_from_transaction(
@@ -102,4 +100,3 @@ def normalize_data_baseline(input_dir: str, target_dir: str) -> None:
                     tx = json.loads(json_line)
                     for row in extract_rows_from_transaction(tx):
                         writer.writerow(row)
-    store_global_metadata()

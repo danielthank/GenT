@@ -14,11 +14,9 @@ def test_start_time(config):
     start_time_generator = StartTimesGenerator.get(config)
     start_time_generator.train()
     timestamps = start_time_generator.generate_timestamps_corpus()
-    print()
-    print("-" * 20)
     print(f"Generated {len(timestamps)} timestamps")
+    print(timestamps)
 
-    start_time_generator.compare()
     os.makedirs(config.results_dir, exist_ok=True)
     path = os.path.join(config.results_dir, "timestamps.pkl")
     pickle.dump(timestamps, open(path, "wb"))

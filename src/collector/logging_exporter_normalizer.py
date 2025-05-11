@@ -13,7 +13,7 @@ import gzip
 from dataclasses import dataclass, field
 
 from ml.app_normalizer import get_csv_headers, extract_rows_from_transaction
-from ml.app_utils import GenTConfig, store_global_metadata
+from ml.app_utils import GenTConfig
 
 
 @dataclass
@@ -128,8 +128,6 @@ def normalize_data(bucket_name: str, config: GenTConfig) -> None:
             transaction = component.to_app_transaction()
             for row in extract_rows_from_transaction(transaction, config):
                 writer.writerow(row)
-
-    store_global_metadata(config)
 
 
 

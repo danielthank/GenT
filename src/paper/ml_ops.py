@@ -55,8 +55,7 @@ def simple_ablations(traces_dir: str) -> None:
     print("GenT simple_ablations")
     configs = [
         GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, independent_chains=True, traces_dir=traces_dir),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, with_gcn=False, traces_dir=traces_dir),
-        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, start_time_with_metadata=True, traces_dir=traces_dir),
+        GenTConfig(chain_length=2, tx_start=0, tx_end=ALL_TRACES, iterations=10, with_gcn=False, traces_dir=traces_dir)
     ]
     for i, config in enumerate(configs):
         print(f"####### simple_ablations index: {i} ########")
