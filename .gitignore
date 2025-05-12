@@ -131,9 +131,6 @@ dmypy.json
 /results/
 /traces/
 /trace_old/
-/src/drivers/netshare/configs/
-/src/ml/metadata_mappings/
-/src/ml/raw_normalized_data/
 /src/paper/baseline/raw_normalized_data/
 /src/paper/baseline/work_folder/
 /src/paper/baseline/baseline_results.json

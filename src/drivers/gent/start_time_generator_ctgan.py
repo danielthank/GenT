@@ -1,10 +1,10 @@
 import os
 import pandas as pd
+import pickle
 
 from sdv.metadata import Metadata
 from sdv.single_table import CTGANSynthesizer
-from typing import List, Dict, Union
-from pathlib import Path
+from typing import List, Dict
 from ml.app_utils import GenTConfig
 from drivers.gent.data import get_full_dataset_start_times
 
@@ -22,10 +22,11 @@ class StartTimesGenerator:
         metadata.add_column("graph", sdtype="categorical")
         metadata.add_column("startTime", sdtype="numerical")
         self.generator = CTGANSynthesizer(
+            metadata=metadata,
             epochs=self.gen_t_config.iterations,
             batch_size=self.gen_t_config.batch_size,
-            metadata=metadata,
-            enforce_min_max_values=True,
+            generator_dim=self.gen_t_config.generator_dim,
+            discriminator_dim=self.gen_t_config.discriminator_dim,
             verbose=True
         )
         self.generator.fit(dataset)
@@ -59,10 +60,12 @@ class StartTimesGenerator:
         # self.generator.__doc__ = None
         self.generator.save(f"{path}/start_time_ctgan_generator.pkl")
         # self.generator._data_sampler = sampler
+        pickle.dump(self.graph_counts, open(f"{path}/graph_counts.pkl", "wb"))
 
     def load(self):
         path = self.models_dir
         self.generator = CTGANSynthesizer.load(f"{path}/start_time_ctgan_generator.pkl")
+        self.graph_counts = pickle.load(open(f"{path}/graph_counts.pkl", "rb"))
 
     @staticmethod
     def get(gen_t_config: GenTConfig, is_roll: bool = False) -> "StartTimesGenerator":
@@ -70,12 +73,3 @@ class StartTimesGenerator:
             gen_t_config,
             is_roll=is_roll,
         )
-
-
-def train_and_save(gen_t_config: GenTConfig, path: Union[str, Path], is_roll: bool = False):
-    """
-    This function is here to support multiprocessing
-    """
-    gen = StartTimesGenerator.get(gen_t_config, is_roll=is_roll)
-    gen.train()
-    gen.save()

@@ -5,11 +5,9 @@ import tempfile
 import time
 from typing import List
 
-import torch.multiprocessing as mp
 from drivers.base_driver import BaseDriver, DriverType
-from drivers.gent.data import ALL_TRACES
-from drivers.gent.metadata_generator_ctgan import MetadataGenerator, train_and_save_root, train_and_save_chained
-from drivers.gent.start_time_generator_ctgan import StartTimesGenerator, train_and_save as train_and_save_start_time
+from drivers.gent.metadata_generator_ctgan import MetadataGenerator
+from drivers.gent.start_time_generator_ctgan import StartTimesGenerator
 from ml.app_utils import GenTConfig
 
 class GenTDriver(BaseDriver):
@@ -31,6 +29,7 @@ class GenTDriver(BaseDriver):
     def _get_model_files(self) -> List[str]:
         return [
             os.path.join(self.get_models_folder(), "start_time", "start_time_ctgan_generator.pkl"),
+            os.path.join(self.get_models_folder(), "start_time", "graph_counts.pkl"),
             os.path.join(self.get_models_folder(), "metadata", "root_ctgan_generator.pkl"),
             os.path.join(self.get_models_folder(), "metadata", "chained_ctgan_generator.pkl"),
             os.path.join(self.get_models_folder(), "metadata", "all_graph_values.pkl"),
@@ -54,18 +53,14 @@ class GenTDriver(BaseDriver):
     def train(self) -> None:
         shutil.rmtree(self.get_results_folder(), ignore_errors=True)
         start = time.time()
-        # train_and_save_start_time(self.gen_t_config, os.path.join(self.get_work_folder(), "start_time"))
-        # train_and_save_root(self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))
-        # train_and_save_chained(self.gen_t_config, os.path.join(self.get_work_folder(), "metadata"))
-        with mp.Pool(processes=3) as pool:
-            processes = [
-                pool.apply_async(train_and_save_start_time, (self.gen_t_config, os.path.join(self.get_results_folder(), "start_time"))),
-                pool.apply_async(train_and_save_root, (self.gen_t_config, os.path.join(self.get_results_folder(), "metadata"))),
-                pool.apply_async(train_and_save_chained, (self.gen_t_config, os.path.join(self.get_results_folder(), "metadata"))),
-            ]
-            [p.get() for p in processes]  # raise exceptions if any
-            pool.close()
-            pool.join()
+
+        start_time_generator = StartTimesGenerator.get(self.gen_t_config)
+        start_time_generator.train()
+        start_time_generator.save()
+        metadata_generator = MetadataGenerator.get(self.gen_t_config)
+        metadata_generator.train()
+        metadata_generator.save()
+
         print(f"Training took {time.time() - start} seconds")
 
     def train_and_generate(self) -> None:
@@ -77,8 +72,8 @@ class GenTDriver(BaseDriver):
         metadata_generator = self.get_metadata_generator()
 
         start = time.time()
+        print("Generating start times")
         ts_corpus = start_time_generator.generate_timestamps_corpus()
-        print("Generated start times")
         metadata_generator.generate_traces_corpus(
             target_dir_path=self.get_generated_data_folder() + suffix,
             ts_corpus=ts_corpus,
@@ -105,13 +100,3 @@ class GenTDriver(BaseDriver):
         if not os.path.exists(path):
             raise Exception(f"Metric {metric_name} not found")
         return float(open(path, "r").read())
-
-
-if __name__ == "__main__":
-    driver = GenTDriver(GenTConfig(iterations=5, tx_end=ALL_TRACES))
-    # driver.train_and_generate()
-    driver.roll()
-    # start_time_generator = StartTimesGenerator.get(driver.gen_t_config)
-    # start_time_generator.load(path=os.path.join(driver.get_work_folder(), "start_time"))
-    # val = start_time_generator.compare()[0][0]
-    # driver.store_metric("start_time", val)

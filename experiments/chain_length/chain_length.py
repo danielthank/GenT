@@ -1,7 +1,6 @@
 import argparse
 import os
-import multiprocessing
-from drivers.base_driver import BaseDriver
+from joblib import parallel_backend
 from drivers.gent.gent_driver import GenTDriver
 from ml.app_utils import GenTConfig
 from paper.ops_utils import FidelityResult, load_results, store_results
@@ -9,7 +8,7 @@ from paper.ops_utils import FidelityResult, load_results, store_results
 ALL_TRACES = 9342
 
 def measure_configuration(
-    driver: BaseDriver,
+    driver: GenTDriver,
     skip_if_exists: bool = True,
 ) -> FidelityResult:
     if skip_if_exists and driver.get_results_key() in load_results(driver):
@@ -46,7 +45,7 @@ def chain_length(traces_dir: str, models_dir: str, results_dir: str) -> None:
         measure_configuration(GenTDriver(config), skip_if_exists=True)
 
 if __name__ == "__main__":
-    multiprocessing.set_start_method('spawn', force=True)
+    parallel_backend("threading")
     parser = argparse.ArgumentParser(description="Chain Length Experiment")
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     parser.add_argument('--models_dir', type=str, required=True, help='Directory to store models')

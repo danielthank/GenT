@@ -80,14 +80,17 @@ def create_spans_table(conn: sqlite3.Connection, table_name: str):
         parentId VARCHAR(50),
         startTime INTEGER,
         endTime INTEGER,
-        serviceName VARCHAR(100),
+        serviceName VARCHAR(100)
+    );'''
+    # TODO: handle metadata and has_error
+    """
         status BOOLEAN,
         str_feature_1 VARCHAR(255),
         str_feature_2 VARCHAR(255),
         int_feature_1 INTEGER,
         int_feature_2 INTEGER,
         int_feature_3 INTEGER
-    );'''
+    """
     cursor.execute(cmd)
     view_name = table_name.replace("Spans", "Traces")
     cursor.execute(f'''
@@ -109,6 +112,8 @@ def fill_data(conn: sqlite3.Connection, traces_dir: str, table_name: str, start_
         tx_id = tx["details"]["transactionId"]
         child_to_parent = {n["target"]: n["source"] for n in tx["graph"]["edges"]}
         for node_id, node in tx["nodesData"].items():
+            # TODO: handle metadata extraction and has_error
+            """
             features = node.get('environmentVariables', {}).get('body', {})
             if len(features) == 5:
                 int_features = [(None, None, int(v)) for v in features.values() if isinstance(v, int)]
@@ -117,21 +122,24 @@ def fill_data(conn: sqlite3.Connection, traces_dir: str, table_name: str, start_
                 int_features, string_features = extract_metadata(node)
             string_features = ([feature[2] for feature in string_features] + [""] * 2)[:2]
             int_features = ([feature[2] for feature in int_features] + [0] * 3)[:3]
+            has_error = 1 if node["issues"] else 0
+            """
             start_time = node["startTime"]
             end_time = node["startTime"] + node["duration"]
             component_name = node["gent_name"].split('*')[0]
-            has_error = 1 if node["issues"] else 0
-            cursor.execute(f'''INSERT INTO {table_name} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
+            cursor.execute(f'''INSERT INTO {table_name} VALUES (?, ?, ?, ?, ?, ?)''', (
                 tx_id,
                 node_id + tx_id,
                 (child_to_parent.get(node_id) or "top") + tx_id,
                 start_time,
                 end_time,
-                component_name,
-                has_error,
-                *string_features,
-                *int_features,
+                component_name
             ))
+            """
+            has_error,
+            *string_features,
+            *int_features,
+            """
     conn.commit()
 
 if __name__ == "__main__":

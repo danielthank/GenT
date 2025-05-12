@@ -1,5 +1,6 @@
 import argparse
 import os
+from joblib import parallel_backend
 from drivers.base_driver import BaseDriver
 from drivers.gent.gent_driver import GenTDriver
 from ml.app_utils import GenTConfig
@@ -47,6 +48,7 @@ def tx_iteration(traces_dir: str, models_dir: str, results_dir: str) -> None:
 
 
 if __name__ == "__main__":
+    parallel_backend("threading")
     parser = argparse.ArgumentParser(description="TX and Iteration Experiment")
     parser.add_argument('--traces_dir', type=str, required=True, help='Directory containing trace data')
     parser.add_argument('--models_dir', type=str, required=True, help='Directory to store models')

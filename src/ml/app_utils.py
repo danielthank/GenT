@@ -9,10 +9,10 @@ EMPTY = "Unknown"
 @dataclass(frozen=True)
 class GenTBaseConfig:
     chain_length: int = 3
-    iterations: int = 100
+    iterations: int = 300
     metadata_str_size: int = 0
     metadata_int_size: int = 0
-    batch_size: int = 10
+    batch_size: int = 500
     is_test: bool = False
     # Remove default value once all initializations have traces_dir
     traces_dir: str = None

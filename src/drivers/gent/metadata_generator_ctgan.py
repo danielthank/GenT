@@ -4,6 +4,7 @@ import uuid
 import os
 import pandas as pd
 
+from rdt.transformers import LogScaler
 from sdv.metadata import Metadata
 from sdv.single_table import CTGANSynthesizer
 from pathlib import Path
@@ -74,70 +75,59 @@ class MetadataGenerator:
         dataset.drop(columns="txStartTime", inplace=True)
 
         return dataset
-
-    def train_root(self):
-        print("Metadata root generator started training")
-        # TODO: dynamic based on chain size
+    
+    def _get_sdv_metadata(self):
         metadata = Metadata()
         metadata.add_table("metadata")
         metadata.add_column("graph", sdtype="categorical")
         metadata.add_column("chain", sdtype="categorical")
-        metadata.add_column("gapFromParent_0", sdtype="numerical")
-        metadata.add_column("duration_0", sdtype="numerical")
-        metadata.add_column("gapFromParent_1", sdtype="numerical")
-        metadata.add_column("duration_1", sdtype="numerical")
-        metadata.add_column("gapFromParent_2", sdtype="numerical")
-        metadata.add_column("duration_2", sdtype="numerical")
+        for i in range(self.gen_t_config.chain_length):
+            metadata.add_column(f"gapFromParent_{i}", sdtype="numerical")
+            metadata.add_column(f"duration_{i}", sdtype="numerical")
         metadata.add_column("is_root_chain", sdtype="boolean")
-        self.root_generator = self.root_generator or CTGANSynthesizer(
+        return metadata
+    
+    def _get_customized_transformers(self):
+        customized_transformer = {}
+        for i in range(self.gen_t_config.chain_length):
+            customized_transformer[f"gapFromParent_{i}"] = LogScaler(constant=-0.001)
+            customized_transformer[f"duration_{i}"] = LogScaler(constant=-0.001)
+        return customized_transformer
+    
+    def _get_synthesizer(self) -> CTGANSynthesizer:
+        metadata = self._get_sdv_metadata()
+        synthesizer = CTGANSynthesizer(
             metadata=metadata,
-            epochs=self.n_epochs, verbose=True,
+            epochs=self.n_epochs,
+            batch_size=self.gen_t_config.batch_size,
             generator_dim=self.gen_t_config.generator_dim,
             discriminator_dim=self.gen_t_config.discriminator_dim,
-            generator_lr=2e-2,
-            generator_decay=1e-6,
-            discriminator_lr=2e-2,
-            discriminator_decay=1e-6
+            enforce_rounding=False,
+            verbose=True,
         )
+        return synthesizer
+
+    def train_root(self):
+        print("Metadata root generator started training")
+        self.root_generator = self.root_generator or self._get_synthesizer()
 
         dataset = self.prepare()
         relevant_indexes = (dataset["is_root_chain"] == True)
         root_dataset = dataset[relevant_indexes]
-        self.root_generator.fit(
-            data=root_dataset,
-        )
+        self.root_generator.auto_assign_transformers(root_dataset)
+        self.root_generator.update_transformers(self._get_customized_transformers())
+        self.root_generator.fit(root_dataset)
 
     def train_chained(self):
         print("Metadata chain generator started training")
-        # TODO: dynamic based on chain size
-        metadata = Metadata()
-        metadata.add_table("metadata")
-        metadata.add_column("graph", sdtype="categorical")
-        metadata.add_column("chain", sdtype="categorical")
-        metadata.add_column("gapFromParent_0", sdtype="numerical")
-        metadata.add_column("duration_0", sdtype="numerical")
-        metadata.add_column("gapFromParent_1", sdtype="numerical")
-        metadata.add_column("duration_1", sdtype="numerical")
-        metadata.add_column("gapFromParent_2", sdtype="numerical")
-        metadata.add_column("duration_2", sdtype="numerical")
-        metadata.add_column("is_root_chain", sdtype="boolean")
-        self.chained_generator = self.chained_generator or CTGANSynthesizer(
-            metadata=metadata,
-            epochs=self.n_epochs, verbose=True,
-            generator_dim=self.gen_t_config.generator_dim,
-            discriminator_dim=self.gen_t_config.discriminator_dim,
-            generator_lr=2e-2,
-            generator_decay=1e-6,
-            discriminator_lr=2e-2,
-            discriminator_decay=1e-6
-        )
+        self.chained_generator = self.chained_generator or self._get_synthesizer()
         
         dataset = self.prepare()
         relevant_indexes = (dataset["is_root_chain"] == False)
         chained_dataset = dataset[relevant_indexes]
-        self.chained_generator.fit(
-            data=chained_dataset,
-        )
+        self.chained_generator.auto_assign_transformers(chained_dataset)
+        self.chained_generator.update_transformers(self._get_customized_transformers())
+        self.chained_generator.fit(chained_dataset)
 
     def _save_generator(self, gen: CTGANSynthesizer, name: str):
         path = self.models_dir
@@ -280,19 +270,3 @@ class MetadataGenerator:
             gen_t_config,
             is_roll=is_roll
         )
-
-def train_and_save_root(gen_t_config: GenTConfig, path: Union[str, Path], is_roll: bool = False):
-    """
-    This function is here to support multiprocessing
-    """
-    gen = MetadataGenerator.get(gen_t_config, is_roll=is_roll)
-    gen.train_root()
-    gen.save_root()
-
-def train_and_save_chained(gen_t_config: GenTConfig, path: Union[str, Path], is_roll: bool = False):
-    """
-    This function is here to support multiprocessing
-    """
-    gen = MetadataGenerator.get(gen_t_config, is_roll=is_roll)
-    gen.train_chained()
-    gen.save_chained()

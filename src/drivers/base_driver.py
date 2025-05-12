@@ -2,7 +2,7 @@ import os
 from typing import Tuple, List, Literal
 from ml.app_utils import GenTBaseConfig
 
-DriverType = Literal["netshare", "tabFormer", "genT"]
+DriverType = Literal["genT"]
 
 class BaseDriver:
     def __init__(self, gen_t_config: GenTBaseConfig):

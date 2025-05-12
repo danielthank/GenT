@@ -11,18 +11,18 @@ stages:
       nfiles: 3
     - path: chain_length.py
       hash: md5
-      md5: 82149b0639ec5d67680034f8143638bd
-      size: 2184
+      md5: 46a9f5a48e5854423c2726788cd452e4
+      size: 2130
     outs:
     - path: ./models
       hash: md5
-      md5: f0d23032832ffbbd74287afdf60aaec9.dir
-      size: 197600590
-      nfiles: 88
+      md5: 070b9d6f0c732214d35a0e023233e2b5.dir
+      size: 6662842
+      nfiles: 32
     - path: ./results
       hash: md5
-      md5: b476aa75bdef1e6d076bba9157979181.dir
-      size: 100308534
+      md5: e26b1e93f5dfac231e7710e881b575ea.dir
+      size: 80407040
       nfiles: 5
   prepare_baseline_sql:
     cmd: PYTHONPATH=../../src python prepare.py --db_output ./baseline.db --traces_dir
@@ -35,36 +35,36 @@ stages:
       nfiles: 3
     - path: ./prepare.py
       hash: md5
-      md5: 6488793fc321a47850e8b25acf5ba023
-      size: 5497
+      md5: 448109ca1399fd1c1ee4f4e3eb6280c7
+      size: 5648
     outs:
     - path: ./baseline.db
       hash: md5
-      md5: bd940701754fda07de0542f47a681a2a
-      size: 5586944
+      md5: 13319330488a35acbaf7bd6d407ecc15
+      size: 4730880
   evaluate_gent:
     cmd: PYTHONPATH=../../src python evaluate.py --db_input ./baseline.db --db_output
       ./baseline_and_gent.db --results_dir ./results --evaluation_results ./evaluation_results.json
     deps:
     - path: ./baseline.db
       hash: md5
-      md5: bd940701754fda07de0542f47a681a2a
-      size: 5586944
+      md5: 13319330488a35acbaf7bd6d407ecc15
+      size: 4730880
     - path: ./evaluate.py
       hash: md5
-      md5: ccccf2a29e00e5459e1ce8e6ed273f50
-      size: 4572
+      md5: bc96c76a3eae7fb01e77e8f83396bd1b
+      size: 4710
     - path: ./results
       hash: md5
-      md5: b476aa75bdef1e6d076bba9157979181.dir
-      size: 100308534
+      md5: e26b1e93f5dfac231e7710e881b575ea.dir
+      size: 80407040
       nfiles: 5
     outs:
     - path: ./baseline_and_gent.db
       hash: md5
-      md5: 8ddd5e7fd94b571dfea9e4a0d612a33a
-      size: 34000896
+      md5: 2d2300f6bd2b07c0175151cc1e2d8f1d
+      size: 27279360
     - path: ./evaluation_results.json
       hash: md5
-      md5: 8344388a47b63b595b7e21925a69f765
-      size: 3621
+      md5: a1b5b77643ce44740097ef8025281af8
+      size: 3259

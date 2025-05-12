@@ -6,7 +6,6 @@ import numpy as np
 from zss import Node, simple_distance
 
 from drivers.base_driver import BaseDriver
-from drivers.netshare.netshare_driver import NetShareDriver
 from fidelity.utils import ComparableForest, ComparableTree, StructureId, \
     build_comparable_forest_of_subgraphs, get_transactions_graphs_generator, TRANSACTION_RAW_DIR
 from ml.app_utils import GenTBaseConfig
